@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.github
+docs
+npm-debug.log*
+.env*.local
+README.md
+tests
+vitest.config.mts
+terraform
+.claude

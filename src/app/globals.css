@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/*
+  Colour roles as variables - light by default, dark when the system asks
+  for it. Components only use the semantic names below (bg-surface,
+  text-fg-muted...), never raw colours.
+*/
+@layer base {
+  html {
+    --c-canvas: #f6f5f1;
+    --c-surface: #ffffff;
+    --c-surface-muted: #efede7;
+    --c-line: #e3e0d8;
+    --c-fg: #1c1b18;
+    --c-fg-muted: #6f6b62;
+    --c-accent: #0f766e;
+    --c-accent-soft: #ccebe7;
+    --c-accent-fg: #ffffff;
+    --c-warning: #b45309;
+    --c-warning-soft: #fdecc8;
+    --c-danger: #b91c1c;
+    --c-danger-soft: #fde2e1;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html {
+      --c-canvas: #0e0f0f;
+      --c-surface: #171918;
+      --c-surface-muted: #202322;
+      --c-line: #2a2e2c;
+      --c-fg: #ecebe6;
+      --c-fg-muted: #9a978f;
+      --c-accent: #2dd4bf;
+      --c-accent-soft: #123a36;
+      --c-accent-fg: #04201d;
+      --c-warning: #fbbf24;
+      --c-warning-soft: #3a2c0b;
+      --c-danger: #f87171;
+      --c-danger-soft: #3b1414;
+      color-scheme: dark;
+    }
+  }
+
+  body {
+    background-color: var(--c-canvas);
+    color: var(--c-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--c-accent) 30%, transparent);
+  }
+
+  /* Amounts line up in columns */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-surface-muted: var(--c-surface-muted);
+  --color-line: var(--c-line);
+  --color-fg: var(--c-fg);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-accent-fg: var(--c-accent-fg);
+  --color-warning: var(--c-warning);
+  --color-warning-soft: var(--c-warning-soft);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}

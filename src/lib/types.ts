@@ -1,0 +1,71 @@
+import type { Currency } from "./money";
+
+export type Role = "admin" | "member";
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  disabled: boolean;
+  /** Bumped on password change - invalidates every older session cookie. */
+  sessionVersion: number;
+  createdAt: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  /** Monthly budget in PLN minor units, 0 = no budget. */
+  budget: number;
+  order: number;
+}
+
+export type ExpenseSource = "manual" | "receipt" | "recurring";
+
+export interface ReceiptItem {
+  name: string;
+  amount: number;
+}
+
+export interface Expense {
+  id: string;
+  /** Amount in the original currency, minor units. */
+  amount: number;
+  currency: Currency;
+  /** Amount in PLN, minor units - every statistic is computed on this. */
+  amountPln: number;
+  /** PLN per one unit of `currency` (NBP table A), 1 for PLN. */
+  fxRate: number;
+  date: string;
+  merchant: string;
+  categoryId: string;
+  note: string;
+  tags: string[];
+  source: ExpenseSource;
+  /** Object name of the receipt photo in the receipts bucket. */
+  receiptPath?: string;
+  items?: ReceiptItem[];
+  recurringId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type Interval = "weekly" | "monthly" | "quarterly" | "yearly";
+
+export interface RecurringExpense {
+  id: string;
+  name: string;
+  amount: number;
+  currency: Currency;
+  categoryId: string;
+  interval: Interval;
+  /** Date of the next charge that has not been booked yet. */
+  nextDate: string;
+  /** Day of month the charge was set up on (keeps "31st" across short months). */
+  anchorDay: number;
+  active: boolean;
+  createdAt: string;
+}
