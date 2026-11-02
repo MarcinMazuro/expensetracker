@@ -1,4 +1,5 @@
 import type { Currency } from "./money";
+import type { ProductGroup, Unit } from "./product-groups";
 
 export type Role = "admin" | "member";
 
@@ -26,8 +27,17 @@ export interface Category {
 export type ExpenseSource = "manual" | "receipt" | "recurring";
 
 export interface ReceiptItem {
+  /** Name as printed (expanded), e.g. "Marchew myta 1 kg". */
   name: string;
+  /** Line price in the expense currency, minor units. */
   amount: number;
+  /** Generic product, e.g. "marchew" - the key of per-product statistics. Missing on receipts saved before it existed. */
+  product?: string;
+  quantity?: number;
+  unit?: Unit;
+  group?: ProductGroup;
+  /** Category the line was assigned on the receipt. */
+  categoryId?: string;
 }
 
 export interface Expense {

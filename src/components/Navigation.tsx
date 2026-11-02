@@ -15,6 +15,7 @@ const ICONS = {
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
   users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
   plus: "M12 5v14M5 12h14",
+  basket: "M5 10h14l-1.5 9a2 2 0 0 1-2 1.7h-7a2 2 0 0 1-2-1.7zM9 10l3-6 3 6M9.5 14v3M14.5 14v3",
 };
 
 type Icon = keyof typeof ICONS;
@@ -33,6 +34,7 @@ const MAIN: { href: string; label: string; icon: Icon }[] = [
   { href: "/expenses", label: "Wydatki", icon: "list" },
   { href: "/scan", label: "Skanuj paragon", icon: "scan" },
   { href: "/reports", label: "Raporty", icon: "chart" },
+  { href: "/products", label: "Produkty", icon: "basket" },
   { href: "/categories", label: "Kategorie i budżety", icon: "tag" },
   { href: "/recurring", label: "Cykliczne", icon: "repeat" },
   { href: "/settings", label: "Ustawienia", icon: "settings" },
@@ -88,7 +90,7 @@ export function Navigation({ name, isAdmin }: { name: string; isAdmin: boolean }
 
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         {MOBILE.map((item) => {
-          const active = isActive(pathname, item.href) || (item.href === "/settings" && ["/categories", "/recurring", "/admin"].some((p) => pathname.startsWith(p)));
+          const active = isActive(pathname, item.href) || (item.href === "/settings" && ["/products", "/categories", "/recurring", "/admin"].some((p) => pathname.startsWith(p)));
           if (item.href === "/scan") {
             return (
               <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center py-1.5" aria-label={item.label}>

@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { readReceipt } from "@/lib/ai/gemini";
-import { splitByCategory, type ReceiptDraft } from "@/lib/ai/receipt-schema";
+import { normalizeProductFields, splitByCategory, type ReceiptDraft } from "@/lib/ai/receipt-schema";
 import { listCategories } from "@/lib/categories";
 import { isIsoDate } from "@/lib/dates";
-import { createExpense } from "@/lib/expenses";
+import { createExpense, knownProducts, rememberProducts } from "@/lib/expenses";
 import { isCurrency } from "@/lib/money";
 import { isRateLimited } from "@/lib/protection";
 import { requireUser } from "@/lib/session";
@@ -34,7 +34,7 @@ export async function scanReceipt(formData: FormData): Promise<ScanResult> {
   }
 
   const data = Buffer.from(await file.arrayBuffer());
-  const categories = await listCategories(user.id);
+  const [categories, products] = await Promise.all([listCategories(user.id), knownProducts(user.id)]);
 
   let receiptPath: string;
   try {
@@ -45,7 +45,7 @@ export async function scanReceipt(formData: FormData): Promise<ScanResult> {
   }
 
   try {
-    const draft = await readReceipt({ data, mimeType: file.type }, categories);
+    const draft = await readReceipt({ data, mimeType: file.type }, categories, products);
     if (!draft) {
       return { ok: false, receiptPath, error: "Nie widzę tu paragonu. Zrób wyraźniejsze zdjęcie całego paragonu albo wpisz wydatek ręcznie." };
     }
@@ -62,7 +62,7 @@ export interface ReceiptSubmission {
   date: string;
   currency: string;
   total: number;
-  items: { name: string; amount: number; categoryId: string }[];
+  items: { name: string; amount: number; categoryId: string; product?: string; quantity?: number; unit?: string; group?: string }[];
   mode: "split" | "single";
   /** Category of the whole receipt in "single" mode. */
   categoryId: string;
@@ -83,7 +83,10 @@ export async function saveReceiptExpenses(input: ReceiptSubmission): Promise<{ e
   const merchant = optionalText(input.merchant, 120) || "Paragon";
   const items = (Array.isArray(input.items) ? input.items : [])
     .slice(0, 200)
-    .map((i) => ({ name: optionalText(i.name, 120), amount: Math.round(Number(i.amount)), categoryId: String(i.categoryId) }))
+    .map((i) => {
+      const name = optionalText(i.name, 120);
+      return { name, amount: Math.round(Number(i.amount)), categoryId: String(i.categoryId), ...normalizeProductFields(i as Record<string, unknown>, name) };
+    })
     .filter((i) => i.name && Number.isFinite(i.amount));
   if (items.some((i) => !categoryIds.has(i.categoryId))) return { error: "Każda pozycja musi mieć kategorię." };
 
@@ -96,7 +99,7 @@ export async function saveReceiptExpenses(input: ReceiptSubmission): Promise<{ e
         await createExpense(
           user.id,
           { ...base, amount: group.amount, categoryId: group.categoryId },
-          { ...extra, items: group.items.map(({ name, amount }) => ({ name, amount })) },
+          { ...extra, items: group.items },
         );
       }
     } else {
@@ -104,9 +107,10 @@ export async function saveReceiptExpenses(input: ReceiptSubmission): Promise<{ e
       await createExpense(
         user.id,
         { ...base, amount: input.total, categoryId: input.categoryId },
-        { ...extra, items: items.map(({ name, amount }) => ({ name, amount })) },
+        { ...extra, items },
       );
     }
+    await rememberProducts(user.id, items);
   } catch (error) {
     console.error("Saving receipt expenses failed:", error);
     return { error: "Nie udało się zapisać. Spróbuj ponownie." };

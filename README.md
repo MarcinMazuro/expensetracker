@@ -16,6 +16,12 @@ GitHub Actions + Cloud Build (Workload Identity Federation, no keys).
   answer with your own category IDs), validated again on the server. Discounts
   are folded into product prices, a line sum that does not match the total is
   flagged. Save as one expense or split by category.
+- **Per-product statistics** - every receipt line also gets a generic product
+  name, quantity with a unit (kg from the weighing or the pack size, litres,
+  pieces) and a product group. The model is given the user's existing product
+  names, so "MARCHEW LUZ" in one shop and "Marchewka myta 1kg" in another both
+  become "marchew". See how many kilograms of fruit you bought this month, the
+  price per kg of chicken breast over time and which shop sells it cheapest.
 - **AI category suggestions** for expenses typed by hand - the merchant memory
   answers first (whatever you chose for "Rossmann" last time), Gemini only
   when the merchant is new.

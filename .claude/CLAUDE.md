@@ -27,6 +27,11 @@ Kod, komentarze, testy, Terraform, commity PO ANGIELSKU; UI po polsku.
 - Kwoty zawsze w groszach (int). `amountPln` liczone kursem NBP z dnia wydatku.
 - Akcje w `src/app/actions/`, strony w `src/app/(app)/`.
 - Skaner: `scan/ReceiptScanner.tsx` -> `scanReceipt` -> `lib/ai/gemini.ts`.
+- Produkty: pozycje paragonu (`expense.items`) mają `product`, `quantity`,
+  `unit` (kg/l/szt), `group` (`lib/product-groups.ts`). Statystyki liczy
+  `lib/products.ts` w pamięci; katalog nazw `users/{uid}/products` idzie do
+  promptu, żeby nazwy się nie rozjeżdżały. Paragony sprzed tej zmiany mają
+  tylko `name` i `amount` - liczą się jako 1 szt., grupa „Inne”.
 
 ## Zasady
 - Bez pauz i półpauz w treściach: tylko `-`.

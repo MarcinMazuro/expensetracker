@@ -11,6 +11,7 @@ export const metadata: Metadata = { title: "Ustawienia" };
 export default async function SettingsPage() {
   const user = await requireUser();
   const links = [
+    { href: "/products", label: "Produkty", icon: "basket" as const },
     { href: "/categories", label: "Kategorie i budżety", icon: "tag" as const },
     { href: "/recurring", label: "Wydatki cykliczne", icon: "repeat" as const },
     ...(user.role === "admin" ? [{ href: "/admin", label: "Użytkownicy", icon: "users" as const }] : []),

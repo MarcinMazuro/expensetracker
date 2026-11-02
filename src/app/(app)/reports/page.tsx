@@ -44,6 +44,7 @@ export default async function ReportsPage() {
           <p className="mt-1 text-sm text-fg-muted">Ostatnie 12 miesięcy · razem {formatMoney(total(expenses))}</p>
         </div>
         <div className="flex gap-2">
+          <Link href={`/products?month=${month}&period=year`} className={buttonClass("secondary")}>Produkty</Link>
           <a href={`/api/export?year=${year}`} className={buttonClass("secondary")} download>CSV {year}</a>
           <a href={`/api/export?year=${Number(year) - 1}`} className={buttonClass("secondary")} download>CSV {Number(year) - 1}</a>
         </div>

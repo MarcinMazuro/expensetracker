@@ -28,6 +28,7 @@ export const COLLECTIONS = {
   categories: "categories",
   recurring: "recurring",
   merchants: "merchants",
+  products: "products",
   fxRates: "fx-rates",
 } as const;
 
@@ -35,6 +36,6 @@ export function userDoc(uid: string) {
   return db().collection(COLLECTIONS.users).doc(uid);
 }
 
-export function userCollection(uid: string, name: "expenses" | "categories" | "recurring" | "merchants") {
+export function userCollection(uid: string, name: "expenses" | "categories" | "recurring" | "merchants" | "products") {
   return userDoc(uid).collection(COLLECTIONS[name]);
 }

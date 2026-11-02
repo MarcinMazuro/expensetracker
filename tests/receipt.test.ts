@@ -25,7 +25,8 @@ describe("normalizeReceipt", () => {
     expect(draft.merchant).toBe("BIEDRONKA");
     expect(draft.currency).toBe("PLN");
     expect(draft.total).toBe(5510);
-    expect(draft.items[3]).toEqual({ name: "Papier", amount: 1749, categoryId: "other" });
+    // Unknown category falls back; missing product fields get safe defaults
+    expect(draft.items[3]).toEqual({ name: "Papier", amount: 1749, categoryId: "other", product: "papier", quantity: 1, unit: "szt", group: "other" });
     expect(draft.mismatch).toBe(false);
   });
 

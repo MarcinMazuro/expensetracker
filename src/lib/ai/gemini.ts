@@ -25,6 +25,7 @@ const model = () => process.env.GEMINI_MODEL ?? "gemini-3.8-flash";
 export async function readReceipt(
   image: { data: Buffer; mimeType: string },
   categories: Category[],
+  knownProducts: string[] = [],
 ): Promise<ReceiptDraft | null> {
   const ids = categories.map((c) => c.id);
   const now = today();
@@ -36,7 +37,7 @@ export async function readReceipt(
         role: "user",
         parts: [
           { inlineData: { data: image.data.toString("base64"), mimeType: image.mimeType } },
-          { text: receiptPrompt(categories, now) },
+          { text: receiptPrompt(categories, now, knownProducts) },
         ],
       },
     ],

@@ -105,3 +105,23 @@ export async function receiptInUse(uid: string, receiptPath: string): Promise<bo
   const snapshot = await userCollection(uid, "expenses").where("receiptPath", "==", receiptPath).limit(1).get();
   return !snapshot.empty;
 }
+
+/**
+ * Product names the user already has, most recent first. Sent to the model
+ * with every receipt so "marchew" stays "marchew" instead of drifting into
+ * "marchewka" - otherwise per-product statistics would split.
+ */
+export async function knownProducts(uid: string, limit = 300): Promise<string[]> {
+  const snapshot = await userCollection(uid, "products").orderBy("lastUsed", "desc").limit(limit).get();
+  return snapshot.docs.map((d) => d.data().name as string);
+}
+
+export async function rememberProducts(uid: string, items: { product?: string; group?: string }[]) {
+  const now = new Date().toISOString();
+  const unique = new Map(items.filter((i) => i.product).map((i) => [merchantKey(i.product!), i]));
+  await Promise.all(
+    [...unique.entries()]
+      .filter(([key]) => key)
+      .map(([key, item]) => userCollection(uid, "products").doc(key).set({ name: item.product, group: item.group, lastUsed: now })),
+  );
+}

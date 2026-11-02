@@ -1,4 +1,4 @@
-import { formatMoney, formatMoneyShort } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 
 interface Bar {
   key: string;
@@ -19,12 +19,15 @@ export function BarChart({
   height = 160,
   labelEvery = 1,
   average,
+  format = formatMoney,
 }: {
   bars: Bar[];
   height?: number;
   labelEvery?: number;
   /** Optional dashed reference line. */
   average?: number;
+  /** How values read in tooltips and for screen readers - money by default. */
+  format?: (value: number) => string;
 }) {
   const max = Math.max(...bars.map((b) => b.value), average ?? 0, 1);
   const width = 100 / bars.length;
@@ -33,12 +36,12 @@ export function BarChart({
   return (
     <figure>
       <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }} role="img"
-        aria-label={`Wykres: ${bars.map((b) => `${b.label} ${formatMoney(b.value)}`).join(", ")}`}>
+        aria-label={`Wykres: ${bars.map((b) => `${b.label} ${format(b.value)}`).join(", ")}`}>
         {bars.map((bar, i) => {
           const h = (bar.value / max) * chartHeight;
           return (
             <g key={bar.key}>
-              <title>{bar.title ?? `${bar.label}: ${formatMoney(bar.value)}`}</title>
+              <title>{bar.title ?? `${bar.label}: ${format(bar.value)}`}</title>
               {/* Full-height hit area so small bars are easy to hover */}
               <rect x={i * width} y={0} width={width} height={chartHeight} fill="transparent" />
               <rect
@@ -66,7 +69,7 @@ export function BarChart({
           ) : null,
         )}
       </div>
-      <figcaption className="sr-only">Maksimum {formatMoneyShort(max)}</figcaption>
+      <figcaption className="sr-only">Maksimum {format(max)}</figcaption>
     </figure>
   );
 }

@@ -5,6 +5,7 @@
  */
 import { isIsoDate } from "../dates";
 import { isCurrency, type Currency } from "../money";
+import { isProductGroup, isUnit, PRODUCT_GROUP_IDS, PRODUCT_GROUPS, UNITS, type ProductGroup, type Unit } from "../product-groups";
 import type { Category } from "../types";
 
 export function receiptJsonSchema(categoryIds: string[]) {
@@ -24,8 +25,12 @@ export function receiptJsonSchema(categoryIds: string[]) {
             name: { type: "string", description: "Product name, expanded from receipt abbreviations if obvious" },
             amount: { type: "number", description: "Final line price after discounts" },
             categoryId: { type: "string", enum: categoryIds },
+            product: { type: "string", description: "Generic Polish base name of the product, lowercase, without brand, size or variety, e.g. 'marchew', 'pierś z kurczaka', 'mleko', 'jabłka'" },
+            quantity: { type: "number", description: "Amount bought, in the unit below" },
+            unit: { type: "string", enum: [...UNITS] },
+            group: { type: "string", enum: PRODUCT_GROUP_IDS },
           },
-          required: ["name", "amount", "categoryId"],
+          required: ["name", "amount", "categoryId", "product", "quantity", "unit", "group"],
         },
       },
     },
@@ -33,8 +38,12 @@ export function receiptJsonSchema(categoryIds: string[]) {
   };
 }
 
-export function receiptPrompt(categories: Category[], today: string): string {
+export function receiptPrompt(categories: Category[], today: string, knownProducts: string[] = []): string {
   const list = categories.map((c) => `- ${c.id}: ${c.emoji} ${c.name}`).join("\n");
+  const groups = PRODUCT_GROUP_IDS.map((id) => `${id} (${PRODUCT_GROUPS[id].name})`).join(", ");
+  const known = knownProducts.length
+    ? `\n- Product names this user already has - reuse one exactly when it is the same product: ${knownProducts.map((p) => JSON.stringify(p)).join(", ")}.`
+    : "";
   return `You read photos of shopping receipts (mostly Polish "paragon fiskalny") for a personal expense tracker.
 
 Extract the merchant, purchase date, currency, the total actually paid and every purchased line.
@@ -45,6 +54,10 @@ Rules:
 - Expand cryptic abbreviations only when you are confident ("MLEKO LAC 2% 1L" -> "Mleko łaciate 2% 1 l"). Keep product names in Polish.
 - Assign every line the best matching category id from this list:
 ${list}
+- For per-product statistics give every line:
+  - product: a generic base name in Polish, lowercase, so the same product bought in different shops gets the same name ("MARCHEW LUZ", "Marchewka myta 1kg" -> "marchew"; "FILET Z PIERSI KURCZ" -> "pierś z kurczaka"; "JABLKA LIGOL" -> "jabłka"; "MLEKO LAC 2% 1L" -> "mleko"). Not the brand, size or variety.${known}
+  - quantity and unit: weighed goods in kg from the weight on the receipt ("0,834 x 4,99" -> 0.834 kg). Packaged food with a weight or volume in its name in kg or l, multiplied by the count ("2 x MLEKO 1L" -> 2 l, "SER GOUDA 150G" -> 0.15 kg). Anything else in pieces (szt) - the count bought. Deposits: szt.
+  - group: one of ${groups}.
 - Today is ${today}; a receipt date in the future is a misread - return an empty date instead.
 - If the image is not a receipt or invoice, set isReceipt to false and return empty values.`;
 }
@@ -53,6 +66,30 @@ export interface ReceiptDraftItem {
   name: string;
   amount: number;
   categoryId: string;
+  product: string;
+  quantity: number;
+  unit: Unit;
+  group: ProductGroup;
+}
+
+/** Lowercase, trimmed, single spaces - "  Pierś z KURCZAKA " -> "pierś z kurczaka". */
+export function normalizeProductName(value: unknown, fallback: string): string {
+  const text = typeof value === "string" ? value : "";
+  const cleaned = text.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 60);
+  return cleaned || fallback.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 60);
+}
+
+/** Validates the product fields of one line (model output or user edits). */
+export function normalizeProductFields(item: Record<string, unknown>, name: string): Pick<ReceiptDraftItem, "product" | "quantity" | "unit" | "group"> {
+  const quantity = typeof item.quantity === "number" && Number.isFinite(item.quantity) && item.quantity > 0 && item.quantity < 10_000
+    ? Math.round(item.quantity * 1000) / 1000
+    : 1;
+  return {
+    product: normalizeProductName(item.product, name),
+    quantity,
+    unit: isUnit(item.unit) ? item.unit : "szt",
+    group: isProductGroup(item.group) ? item.group : "other",
+  };
 }
 
 export interface ReceiptDraft {
@@ -84,12 +121,16 @@ export function normalizeReceipt(
   if (data.isReceipt === false) return null;
 
   const items: ReceiptDraftItem[] = (Array.isArray(data.items) ? data.items : [])
-    .map((item: Record<string, unknown>) => ({
-      name: typeof item?.name === "string" ? item.name.trim().slice(0, 120) : "",
-      amount: toMinor(item?.amount) ?? 0,
-      categoryId:
-        typeof item?.categoryId === "string" && categoryIds.has(item.categoryId) ? item.categoryId : fallbackCategoryId,
-    }))
+    .filter((item: unknown): item is Record<string, unknown> => typeof item === "object" && item !== null)
+    .map((item) => {
+      const name = typeof item.name === "string" ? item.name.trim().slice(0, 120) : "";
+      return {
+        name,
+        amount: toMinor(item.amount) ?? 0,
+        categoryId: typeof item.categoryId === "string" && categoryIds.has(item.categoryId) ? item.categoryId : fallbackCategoryId,
+        ...normalizeProductFields(item, name),
+      };
+    })
     .filter((item) => item.name && item.amount !== 0)
     .slice(0, 200);
 
@@ -120,8 +161,10 @@ export function normalizeReceipt(
  * printed total wins over the line sum: the difference (rounding, an
  * unreadable line) goes to the largest group.
  */
-export function splitByCategory(draft: Pick<ReceiptDraft, "items" | "total">): { categoryId: string; amount: number; items: ReceiptDraftItem[] }[] {
-  const groups = new Map<string, ReceiptDraftItem[]>();
+export function splitByCategory<T extends { amount: number; categoryId: string }>(
+  draft: { items: T[]; total: number },
+): { categoryId: string; amount: number; items: T[] }[] {
+  const groups = new Map<string, T[]>();
   for (const item of draft.items) {
     groups.set(item.categoryId, [...(groups.get(item.categoryId) ?? []), item]);
   }

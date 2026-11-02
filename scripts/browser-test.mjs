@@ -3,7 +3,7 @@
  * End-to-end test in real headless Chrome, driven over the DevTools
  * protocol (no extra dependencies - Node 22 has WebSocket built in).
  *
- *   EMAIL=... PASSWORD=... node scripts/browser-test.mjs [base-url] [screenshot-dir] [receipt-photo]
+ *   EMAIL=... PASSWORD=... node scripts/browser-test.mjs [base-url] [screenshot-dir] [receipt-photo...]
  *
  * Logs in, adds an expense by hand, scans a receipt photo (when given),
  * then opens every page on a phone and a laptop screen, failing on any
@@ -16,7 +16,8 @@ import { join, resolve } from "node:path";
 
 const BASE = (process.argv[2] ?? "http://localhost:3002").replace(/\/$/, "");
 const SHOTS = process.argv[3];
-const RECEIPT = process.argv[4] && resolve(process.argv[4]);
+const RECEIPTS = process.argv.slice(4).map((p) => resolve(p));
+const RECEIPT = RECEIPTS[0];
 const { EMAIL, PASSWORD } = process.env;
 if (!EMAIL || !PASSWORD) {
   console.error("Set EMAIL and PASSWORD of a test account.");
@@ -24,7 +25,7 @@ if (!EMAIL || !PASSWORD) {
 }
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
-const PAGES = ["/", "/expenses", "/expenses/new", "/scan", "/reports", "/categories", "/recurring", "/settings", "/admin"];
+const PAGES = ["/", "/expenses", "/expenses/new", "/scan", "/reports", "/products", "/categories", "/recurring", "/settings", "/admin"];
 const SCREENS = [
   { name: "phone", width: 390, height: 844, mobile: true, scale: 2 },
   { name: "laptop", width: 1440, height: 900, mobile: false, scale: 1 },
@@ -133,20 +134,35 @@ try {
   await click("form button[type=submit]:not([name])");
   await waitFor(`location.pathname === "/expenses" && document.body.innerText.includes("Stacja Orlen paliwo")`);
 
-  if (RECEIPT) {
-    step("scan a receipt");
+  for (const [index, photo] of RECEIPTS.entries()) {
+    step(`scan receipt ${index + 1}`);
     await goto("/scan");
     const { root } = await send("DOM.getDocument");
     const { nodeId } = await send("DOM.querySelector", { nodeId: root.nodeId, selector: "#receipt-photo" });
-    await send("DOM.setFileInputFiles", { nodeId, files: [RECEIPT] });
+    await send("DOM.setFileInputFiles", { nodeId, files: [photo] });
     await waitFor(`document.body.innerText.includes("Jak zapisać")`, 90000);
-    const summary = await evaluate(`[...document.querySelectorAll("main li")].map((li) => li.innerText.replace(/\\s+/g, " ")).slice(0, 12).join(" | ")`);
-    console.log(`  read: ${summary}`);
-    await shot("scan-review-phone");
+    const read = await evaluate(`[...document.querySelectorAll("main li")].filter((li) => li.querySelector("input[aria-label='Ilość']")).map((li) =>
+      li.querySelector("input").value + " -> " + li.querySelector("input[aria-label^='Produkt']").value + " " +
+      li.querySelector("input[aria-label='Ilość']").value + " " + li.querySelector("select[aria-label='Jednostka']").value).join(" | ")`);
+    console.log(`    ${read.replaceAll(" | ", "\n    ")}`);
+    await shot(`scan-review-${index + 1}`);
     await clickText("Zapisz");
     await waitFor(`location.pathname === "/expenses"`, 30000);
     // The app lands on the month of the receipt date
-    receiptList = await evaluate("location.pathname + location.search");
+    if (index === 0) receiptList = await evaluate("location.pathname + location.search");
+  }
+
+  if (RECEIPTS.length > 1) {
+    step("product statistics");
+    await goto("/products?period=year");
+    await waitFor(`document.body.innerText.toLowerCase().includes("marchew")`);
+    const rows = await evaluate(`[...document.querySelectorAll("tbody tr")].map((tr) => tr.innerText.replace(/\\s+/g, " ")).join(" | ")`);
+    console.log(`    ${rows.replaceAll(" | ", "\n    ")}`);
+    await shot("products");
+    await click("tbody a");
+    await waitFor(`location.pathname.startsWith("/products/")`);
+    await wait(500);
+    await shot("product-detail");
   }
 
   for (const screen of SCREENS) {

@@ -9,7 +9,9 @@ Ostatnia aktualizacja: 2026-11-02.
   (repo publiczne https://github.com/MarcinMazuro/expensetracker, CI zielone).
 - Aplikacja: logowanie, admin kont, pulpit, wydatki, skaner paragonów,
   podpowiedzi kategorii, budżety, cykliczne, raporty, CSV, waluty (NBP).
-- 66 testów jednostkowych + test e2e w Chrome (przechodzi lokalnie).
+- Statystyki produktów (2026-11-02): ilości kg/l/szt., grupy, cena za kg,
+  najtańszy sklep. Ręczne wydatki nie mają pozycji, więc ich tu nie ma.
+- 77 testów jednostkowych + test e2e w Chrome (przechodzi lokalnie).
 
 ## Czeka
 1. Pierwszy admin w produkcji: `npm run create-user -- --email ... --role admin`

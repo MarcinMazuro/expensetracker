@@ -8,6 +8,7 @@ import { NavIcon } from "@/components/Navigation";
 import { splitByCategory, type ReceiptDraft, type ReceiptDraftItem } from "@/lib/ai/receipt-schema";
 import { cn } from "@/lib/cn";
 import { CURRENCIES, formatMoney, parseAmount, toInputValue } from "@/lib/money";
+import { PRODUCT_GROUPS, UNITS, type Unit } from "@/lib/product-groups";
 import type { Category } from "@/lib/types";
 
 const MAX_EDGE = 2000;
@@ -204,11 +205,11 @@ export function ReceiptScanner({ categories }: { categories: Category[] }) {
 
         <Card className="px-3">
           <CardTitle>
-            <span className="px-2">Pozycje ({draft.items.length}) · kategorię każdej możesz zmienić</span>
+            <span className="px-2">Pozycje ({draft.items.length}) · pod spodem produkt i ilość do statystyk</span>
           </CardTitle>
           <ul className="divide-y divide-line">
             {draft.items.map((item, i) => (
-              <li key={i} className="grid grid-cols-[1fr_6.5rem_2rem] items-center gap-2 px-2 py-2 sm:grid-cols-[1fr_12rem_6.5rem_2rem]">
+              <li key={i} className="grid grid-cols-[1fr_6.5rem_2rem] items-center gap-2 px-2 py-2.5 sm:grid-cols-[1fr_12rem_6.5rem_2rem]">
                 <input value={item.name} onChange={(e) => updateItem(i, { name: e.target.value })}
                   className="min-w-0 bg-transparent text-sm outline-none focus:underline" aria-label="Nazwa pozycji" />
                 <select value={item.categoryId} onChange={(e) => updateItem(i, { categoryId: e.target.value })}
@@ -219,11 +220,21 @@ export function ReceiptScanner({ categories }: { categories: Category[] }) {
                 <AmountInput value={item.amount} onChange={(amount) => updateItem(i, { amount })} className="h-8 text-right text-sm" />
                 <button type="button" onClick={() => setDraft({ ...draft, items: draft.items.filter((_, j) => j !== i) })}
                   className="text-fg-muted hover:text-danger" aria-label={`Usuń ${item.name}`}>✕</button>
+                <div className="col-span-3 flex items-center gap-2 text-xs sm:col-span-4">
+                  <span aria-hidden>{PRODUCT_GROUPS[item.group].emoji}</span>
+                  <input value={item.product} onChange={(e) => updateItem(i, { product: e.target.value })} aria-label="Produkt (do statystyk)"
+                    title="Nazwa produktu w statystykach" className="min-w-0 flex-1 rounded-md bg-surface-muted px-2 py-1 outline-none focus:ring-2 focus:ring-accent/30" />
+                  <QuantityInput value={item.quantity} onChange={(quantity) => updateItem(i, { quantity })} />
+                  <select value={item.unit} onChange={(e) => updateItem(i, { unit: e.target.value as Unit })} aria-label="Jednostka"
+                    className="rounded-md bg-surface-muted px-1.5 py-1 outline-none">
+                    {UNITS.map((u) => <option key={u} value={u}>{u === "szt" ? "szt." : u}</option>)}
+                  </select>
+                </div>
               </li>
             ))}
           </ul>
           <button type="button" className="mt-2 px-2 text-sm text-accent hover:underline"
-            onClick={() => setDraft({ ...draft, items: [...draft.items, { name: "Nowa pozycja", amount: 0, categoryId: singleCategory || categories[0].id }] })}>
+            onClick={() => setDraft({ ...draft, items: [...draft.items, { name: "Nowa pozycja", amount: 0, categoryId: singleCategory || categories[0].id, product: "", quantity: 1, unit: "szt", group: "other" }] })}>
             + Dodaj pozycję
           </button>
         </Card>
@@ -275,5 +286,25 @@ function AmountInput({ value, onChange, className }: { value: number; onChange: 
         else { setLast(parsed); onChange(parsed); }
       }}
       className={cn(inputClass, "tabular", className)} aria-label="Kwota" />
+  );
+}
+
+/** Quantity like "0,834"; parsed on blur, falls back to the previous value. */
+function QuantityInput({ value, onChange }: { value: number; onChange: (quantity: number) => void }) {
+  const show = (v: number) => String(v).replace(".", ",");
+  const [text, setText] = useState(show(value));
+  const [last, setLast] = useState(value);
+  if (value !== last) {
+    setLast(value);
+    setText(show(value));
+  }
+  return (
+    <input inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} aria-label="Ilość"
+      onBlur={() => {
+        const parsed = Number(text.replace(",", ".").trim());
+        if (!Number.isFinite(parsed) || parsed <= 0) setText(show(value));
+        else { setLast(parsed); onChange(parsed); }
+      }}
+      className="w-16 rounded-md bg-surface-muted px-2 py-1 text-right outline-none tabular focus:ring-2 focus:ring-accent/30" />
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { removeExpense } from "@/app/actions/expenses";
 import { ExpenseForm } from "@/components/ExpenseForm";
@@ -8,6 +9,8 @@ import { listCategories } from "@/lib/categories";
 import { today } from "@/lib/dates";
 import { getExpense, recentSuggestions } from "@/lib/expenses";
 import { BASE_CURRENCY, formatMoney } from "@/lib/money";
+import { formatQuantity } from "@/lib/product-groups";
+import { productKey } from "@/lib/products";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Wydatek" };
@@ -46,7 +49,14 @@ export default async function ExpensePage({ params }: PageProps<"/expenses/[id]"
               <ul className="space-y-1.5 text-sm">
                 {expense.items.map((item, i) => (
                   <li key={i} className="flex justify-between gap-3">
-                    <span className="truncate">{item.name}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate">{item.name}</span>
+                      {item.product && item.unit && item.quantity !== undefined && (
+                        <Link href={`/products/${productKey(item.product)}?month=${expense.date.slice(0, 7)}`} className="block text-xs text-fg-muted hover:text-accent">
+                          {item.product} · {formatQuantity(item.quantity, item.unit)}
+                        </Link>
+                      )}
+                    </span>
                     <span className="shrink-0 tabular">{formatMoney(item.amount, expense.currency)}</span>
                   </li>
                 ))}
