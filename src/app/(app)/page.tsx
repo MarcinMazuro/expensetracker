@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
+import { AVATARS, isAvatarId } from "@/lib/access";
 import { BarChart } from "@/components/charts/BarChart";
 import { ShareBar } from "@/components/charts/Shared";
 import { Donut } from "@/components/charts/Donut";
@@ -16,6 +17,7 @@ import { loadHousehold } from "@/lib/household-data";
 import { formatMoney } from "@/lib/money";
 import { bookDueRecurring } from "@/lib/recurring";
 import { requireUser } from "@/lib/session";
+import { plural } from "@/lib/text";
 import { budgets, byCategory, change, dailySeries, pace, topMerchants, total } from "@/lib/stats";
 
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
@@ -50,13 +52,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
   return (
     <>
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-fg-muted">Cześć, {user.name.split(" ")[0]}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Twoje wydatki</h1>
-        </div>
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <MonthSwitcher month={month} path="/" />
         <div className="flex flex-wrap items-center gap-2">
-          <MonthSwitcher month={month} path="/" />
           <LinkButton href="/scan" variant="secondary" className="hidden sm:inline-flex">
             <NavIcon name="scan" className="size-4" /> Skanuj paragon
           </LinkButton>
@@ -64,38 +62,63 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         </div>
       </header>
 
-      {household.length > 1 && (
-        <Link href={`/together?month=${month}`}
-          className="group mb-3 flex items-center gap-4 rounded-2xl border border-line bg-surface px-5 py-3.5 transition hover:border-accent">
-          <span className="flex -space-x-2">{household.map((p) => <Avatar key={p.user.id} user={p.user} size={34} ring />)}</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs text-fg-muted">Razem {inMonth(month)}</span>
-            <span className="block font-semibold tabular">{formatMoney(household.reduce((s, p) => s + p.total, 0))}</span>
-          </span>
-          <span className="hidden w-48 sm:block"><ShareBar people={household} /></span>
-          <span className="text-fg-muted transition group-hover:translate-x-0.5 group-hover:text-accent">→</span>
-        </Link>
-      )}
+      <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
+        {/* Greeting: your month, with your animal standing at the edge */}
+        <section className="relative overflow-hidden rounded-3xl border border-line bg-surface p-6 sm:p-7">
+          <div aria-hidden className="pointer-events-none absolute inset-0"
+            style={{ background: `radial-gradient(80% 120% at 100% 100%, color-mix(in oklab, ${user.color} 22%, transparent), transparent 65%)` }} />
+          {isAvatarId(user.avatar) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={AVATARS[user.avatar].full} alt="" aria-hidden
+              className="pointer-events-none absolute right-2 bottom-0 h-36 drop-shadow-xl sm:right-6 sm:h-48" />
+          )}
+          <div className="relative pr-28 sm:pr-44">
+            <p className="text-sm text-fg-muted">Cześć, {user.name.split(" ")[0]} {isAvatarId(user.avatar) ? (user.avatar === "lion" ? "🦁" : "🐆") : "👋"}</p>
+            <h1 className="mt-0.5 text-sm font-medium">Twoje wydatki {inMonth(month)}</h1>
+            <p className="mt-3 text-4xl font-semibold tracking-tight tabular sm:text-5xl">{formatMoney(stats.spent)}</p>
+            <p className="mt-2">
+              <ChangeBadge value={change(stats.spent, isCurrentMonth ? lastMonthToDate : total(lastMonth))}
+                label={isCurrentMonth ? "vs ten sam okres m-c temu" : "vs poprzedni miesiąc"} />
+            </p>
+          </div>
+        </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card className="col-span-2 lg:col-span-1">
-          <p className="text-sm text-fg-muted">Wydano</p>
-          <p className="mt-1 text-3xl font-semibold tracking-tight tabular">{formatMoney(stats.spent)}</p>
-          <p className="mt-2">
-            <ChangeBadge value={change(stats.spent, isCurrentMonth ? lastMonthToDate : total(lastMonth))}
-              label={isCurrentMonth ? "vs ten sam okres m-c temu" : "vs poprzedni miesiąc"} />
-          </p>
-        </Card>
+        {household.length > 1 ? (
+          <Link href={`/together?month=${month}`}
+            className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-line bg-surface p-6 transition hover:border-accent">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-fg-muted">Razem {inMonth(month)}</p>
+                <p className="mt-1 text-2xl font-semibold tabular">{formatMoney(household.reduce((s, p) => s + p.total, 0))}</p>
+              </div>
+              <span className="flex -space-x-3">{household.map((p) => <Avatar key={p.user.id} user={p.user} size={52} ring />)}</span>
+            </div>
+            <div className="mt-5">
+              <ShareBar people={household} />
+              <div className="mt-2 flex justify-between text-xs text-fg-muted tabular">
+                {household.map((p) => <span key={p.user.id}>{p.user.name} {formatMoney(p.total)}</span>)}
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <Card className="rounded-3xl">
+            <p className="text-sm text-fg-muted">Wydatków</p>
+            <p className="mt-1 text-2xl font-semibold tabular">{thisMonth.length}</p>
+          </Card>
+        )}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Card>
           <p className="text-sm text-fg-muted">Średnio dziennie</p>
           <p className="mt-1 text-xl font-semibold tabular">{formatMoney(stats.dailyAverage)}</p>
-          <p className="mt-2 text-xs text-fg-muted">{thisMonth.length} wydatków</p>
+          <p className="mt-2 text-xs text-fg-muted">{plural(thisMonth.length, "wydatek", "wydatki", "wydatków")}</p>
         </Card>
         <Card>
           <p className="text-sm text-fg-muted">{isCurrentMonth ? "Prognoza na koniec" : "Poprzedni miesiąc"}</p>
           <p className="mt-1 text-xl font-semibold tabular">{formatMoney(isCurrentMonth ? stats.projected : total(lastMonth))}</p>
           <p className="mt-2 text-xs text-fg-muted">
-            {isCurrentMonth ? `po ${stats.elapsedDays} z ${stats.days} dni` : `${lastMonth.length} wydatków`}
+            {isCurrentMonth ? `po ${stats.elapsedDays} z ${stats.days} dni` : plural(lastMonth.length, "wydatek", "wydatki", "wydatków")}
           </p>
         </Card>
         <Card className="col-span-2 lg:col-span-1">
@@ -210,7 +233,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </EmptyState>
         ) : (
           <div className="-mx-2">
-            {thisMonth.slice(0, 6).map((e) => <ExpenseRow key={e.id} expense={e} category={category(e.categoryId)} showDate />)}
+            {thisMonth.slice(0, 6).map((e) => <ExpenseRow key={e.id} expense={e} category={category(e.categoryId)} showDate people={members.map((m) => m.user)} />)}
           </div>
         )}
       </Card>

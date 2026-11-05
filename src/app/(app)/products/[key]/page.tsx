@@ -8,6 +8,7 @@ import { listExpenses } from "@/lib/expenses";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity, PRODUCT_GROUPS } from "@/lib/product-groups";
 import { aggregateProducts, priceByMerchant, productHistory, productLines } from "@/lib/products";
+import { resolveOwner } from "@/lib/people";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Produkt" };
@@ -15,11 +16,13 @@ export const metadata: Metadata = { title: "Produkt" };
 export default async function ProductPage({ params, searchParams }: PageProps<"/products/[key]">) {
   const user = await requireUser();
   const { key } = await params;
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, u: requested } = await searchParams;
+  const { owner } = await resolveOwner(user, requested);
+  const u = owner.id === user.id ? "" : `&u=${owner.id}`;
   const month = isIsoMonth(monthParam) ? monthParam : currentMonth();
   const months = monthsBack(month, 12);
 
-  const expenses = await listExpenses(user.id, monthRange(months[0]).from, monthRange(month).to);
+  const expenses = await listExpenses(owner.id, monthRange(months[0]).from, monthRange(month).to);
   const lines = productLines(expenses).filter((l) => l.key === decodeURIComponent(key));
   if (lines.length === 0) notFound();
 
@@ -34,7 +37,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   return (
     <>
       <header className="mb-6">
-        <Link href={`/products?month=${month}&period=year`} className="text-sm text-accent hover:underline">← Produkty</Link>
+        <Link href={`/products?month=${month}&period=year${u}`} className="text-sm text-accent hover:underline">← Produkty{u ? ` · ${owner.name}` : ""}</Link>
         <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight first-letter:uppercase">
           <span aria-hidden>{PRODUCT_GROUPS[summary.group].emoji}</span>{summary.product}
         </h1>
@@ -99,7 +102,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           <ul className="divide-y divide-line text-sm">
             {recent.map((l, i) => (
               <li key={`${l.expenseId}-${i}`}>
-                <Link href={`/expenses/${l.expenseId}`} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-muted">
+                <Link href={`/expenses/${l.expenseId}${u ? `?u=${owner.id}` : ""}`} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-muted">
                   <span className="w-14 shrink-0 text-fg-muted">{formatDayShort(l.date)}</span>
                   <span className="flex-1 truncate">{l.merchant}</span>
                   <span className="text-fg-muted tabular">{formatQuantity(l.quantity, l.unit)}</span>

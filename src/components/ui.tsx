@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AVATARS } from "@/lib/access";
 import { cn } from "@/lib/cn";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
@@ -121,7 +122,13 @@ export function CategoryBadge({ emoji, name, color }: { emoji: string; name: str
 
 export function EmptyState({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line px-6 py-12 text-center">
+    <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+      <div className="mb-4 flex items-end justify-center gap-1 opacity-90" aria-hidden>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={AVATARS.lion.full} alt="" className="h-20" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={AVATARS.puma.full} alt="" className="h-16" />
+      </div>
       <p className="font-medium">{title}</p>
       {children && <div className="mt-2 text-sm text-fg-muted">{children}</div>}
     </div>

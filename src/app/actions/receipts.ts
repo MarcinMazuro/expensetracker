@@ -5,7 +5,8 @@ import { readReceipt } from "@/lib/ai/gemini";
 import { normalizeProductFields, splitByCategory, type ReceiptDraft } from "@/lib/ai/receipt-schema";
 import { listCategories } from "@/lib/categories";
 import { isIsoDate } from "@/lib/dates";
-import { createExpense, knownProducts, rememberProducts } from "@/lib/expenses";
+import { writeExpense } from "@/lib/expense-writer";
+import { knownProducts } from "@/lib/expenses";
 import { isCurrency } from "@/lib/money";
 import { isRateLimited } from "@/lib/protection";
 import { requireUser } from "@/lib/session";
@@ -68,6 +69,8 @@ export interface ReceiptSubmission {
   categoryId: string;
   note: string;
   tags: string;
+  /** Split equally with the other person - each account gets half. */
+  shared?: boolean;
 }
 
 /** Saves the reviewed receipt: one expense, or one per category. */
@@ -91,26 +94,17 @@ export async function saveReceiptExpenses(input: ReceiptSubmission): Promise<{ e
   if (items.some((i) => !categoryIds.has(i.categoryId))) return { error: "Każda pozycja musi mieć kategorię." };
 
   const base = { currency: input.currency, date: input.date, merchant, note: optionalText(input.note, 1000), tags: parseTags(input.tags) };
-  const extra = { source: "receipt" as const, receiptPath: input.receiptPath };
+  const options = { source: "receipt" as const, receiptPath: input.receiptPath, shared: input.shared === true };
 
   try {
     if (input.mode === "split" && items.length > 0) {
       for (const group of splitByCategory({ items, total: input.total })) {
-        await createExpense(
-          user.id,
-          { ...base, amount: group.amount, categoryId: group.categoryId },
-          { ...extra, items: group.items },
-        );
+        await writeExpense(user, { ...base, amount: group.amount, categoryId: group.categoryId }, { ...options, items: group.items });
       }
     } else {
       if (!categoryIds.has(input.categoryId)) return { error: "Wybierz kategorię." };
-      await createExpense(
-        user.id,
-        { ...base, amount: input.total, categoryId: input.categoryId },
-        { ...extra, items },
-      );
+      await writeExpense(user, { ...base, amount: input.total, categoryId: input.categoryId }, { ...options, items });
     }
-    await rememberProducts(user.id, items);
   } catch (error) {
     console.error("Saving receipt expenses failed:", error);
     return { error: "Nie udało się zapisać. Spróbuj ponownie." };

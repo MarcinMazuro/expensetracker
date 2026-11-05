@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExpenseRow } from "@/components/ExpenseRow";
+import { PersonSwitcher } from "@/components/PersonSwitcher";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Card, EmptyState, inputClass, LinkButton, buttonClass } from "@/components/ui";
 import { categoryMap, listCategories, UNKNOWN_CATEGORY } from "@/lib/categories";
@@ -9,8 +10,10 @@ import { listExpenses } from "@/lib/expenses";
 import { filterExpenses, groupByDay } from "@/lib/filters";
 import { formatMoney } from "@/lib/money";
 import { bookDueRecurring } from "@/lib/recurring";
+import { resolveOwner } from "@/lib/people";
 import { requireUser } from "@/lib/session";
 import { total } from "@/lib/stats";
+import { plural } from "@/lib/text";
 
 export const metadata: Metadata = { title: "Wydatki" };
 
@@ -22,29 +25,36 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
   const month = isIsoMonth(params.month) ? params.month : currentMonth();
   const filters = { category: str(params.category), q: str(params.q).slice(0, 100), tag: str(params.tag) };
 
-  await bookDueRecurring(user.id);
+  const { owner, people } = await resolveOwner(user, params.u);
+  const mine = owner.id === user.id;
+
+  await bookDueRecurring(owner.id);
   const { from, to } = monthRange(month);
-  const [categories, all] = await Promise.all([listCategories(user.id), listExpenses(user.id, from, to)]);
+  const [categories, all] = await Promise.all([listCategories(owner.id), listExpenses(owner.id, from, to)]);
   const categoriesById = categoryMap(categories);
   const expenses = filterExpenses(all, filters);
   const days = groupByDay(expenses);
   const filtered = Boolean(filters.category || filters.q || filters.tag);
-  const activeParams = Object.fromEntries(Object.entries(filters).filter(([, v]) => v));
+  const activeParams = Object.fromEntries(Object.entries({ ...filters, u: mine ? "" : owner.id }).filter(([, v]) => v));
   const exportQuery = new URLSearchParams({ month, ...activeParams });
 
   return (
     <>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Wydatki</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Wydatki</h1>
+          <PersonSwitcher people={people} owner={owner} viewer={user} path="/expenses" params={{ month, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) }} />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <MonthSwitcher month={month} path="/expenses" params={activeParams} />
           <a href={`/api/export?${exportQuery}`} className={buttonClass("secondary")} download>CSV</a>
-          <LinkButton href="/expenses/new">+ Dodaj</LinkButton>
+          {mine && <LinkButton href="/expenses/new">+ Dodaj</LinkButton>}
         </div>
       </header>
 
       <form className="mb-4 grid gap-2 sm:grid-cols-[1fr_14rem_auto]" role="search">
         <input type="hidden" name="month" value={month} />
+        {!mine && <input type="hidden" name="u" value={owner.id} />}
         <input name="q" defaultValue={filters.q} placeholder="Szukaj: sklep, notatka, produkt z paragonu, #tag" className={inputClass} />
         <select name="category" defaultValue={filters.category} className={inputClass}>
           <option value="">Wszystkie kategorie</option>
@@ -56,14 +66,14 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
       {filters.tag && (
         <p className="mb-4 text-sm">
           Tag <strong>#{filters.tag}</strong> ·{" "}
-          <Link href={`/expenses?${new URLSearchParams({ month, ...(filters.q && { q: filters.q }), ...(filters.category && { category: filters.category }) })}`} className="text-accent hover:underline">usuń</Link>
+          <Link href={`/expenses?${new URLSearchParams({ month, ...(filters.q && { q: filters.q }), ...(filters.category && { category: filters.category }), ...(!mine && { u: owner.id }) })}`} className="text-accent hover:underline">usuń</Link>
         </p>
       )}
 
       <Card className="mb-4 flex flex-wrap items-center justify-between gap-2 py-4">
         <span className="text-sm text-fg-muted">
-          {expenses.length} {filtered ? `z ${all.length} wydatków` : "wydatków"}
-          {filtered && <> · <Link href={`/expenses?month=${month}`} className="text-accent hover:underline">wyczyść filtry</Link></>}
+          {filtered ? `${expenses.length} z ${plural(all.length, "wydatku", "wydatków", "wydatków")}` : plural(expenses.length, "wydatek", "wydatki", "wydatków")}
+          {filtered && <> · <Link href={`/expenses?month=${month}${mine ? "" : `&u=${owner.id}`}`} className="text-accent hover:underline">wyczyść filtry</Link></>}
         </span>
         <span className="text-lg font-semibold tabular">{formatMoney(total(expenses))}</span>
       </Card>
@@ -81,7 +91,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
                 <span className="text-fg-muted tabular">{formatMoney(day.total)}</span>
               </div>
               {day.expenses.map((e) => (
-                <ExpenseRow key={e.id} expense={e} category={categoriesById.get(e.categoryId) ?? UNKNOWN_CATEGORY} />
+                <ExpenseRow key={e.id} expense={e} category={categoriesById.get(e.categoryId) ?? UNKNOWN_CATEGORY} people={people} ownerId={mine ? undefined : owner.id} />
               ))}
             </Card>
           ))}

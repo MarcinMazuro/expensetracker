@@ -58,23 +58,12 @@ export async function createExpense(uid: string, input: ExpenseInput, extra: Ext
   return ref.id;
 }
 
-export async function updateExpense(uid: string, id: string, input: ExpenseInput) {
-  await userCollection(uid, "expenses")
-    .doc(id)
-    .update({ ...input, ...(await withPln(input)), updatedAt: new Date().toISOString() });
-  await rememberMerchant(uid, input.merchant, input.categoryId);
-}
-
-export async function deleteExpense(uid: string, id: string) {
-  await userCollection(uid, "expenses").doc(id).delete();
-}
-
 /**
  * The category last chosen for a merchant. Learned from every saved
  * expense - after one correction "Rossmann" stays in the right category
  * without asking the model again.
  */
-async function rememberMerchant(uid: string, name: string, categoryId: string) {
+export async function rememberMerchant(uid: string, name: string, categoryId: string) {
   const key = merchantKey(name);
   if (!key) return;
   await userCollection(uid, "merchants").doc(key).set({

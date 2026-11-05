@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions/auth";
 import { Avatar } from "@/components/Avatar";
+import { AVATARS, isAvatarId, type AvatarId } from "@/lib/access";
 import { cn } from "@/lib/cn";
 import type { User } from "@/lib/types";
 
@@ -56,7 +57,9 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Navigation({ user, isAdmin }: { user: Pick<User, "name" | "color" | "picture" | "avatar">; isAdmin: boolean }) {
+type Person = Pick<User, "id" | "name" | "color" | "picture" | "avatar">;
+
+export function Navigation({ user, isAdmin, people }: { user: Person; isAdmin: boolean; people: Person[] }) {
   const pathname = usePathname();
   const items = isAdmin ? [...MAIN, { href: "/admin", label: "Dostęp", icon: "users" as Icon }] : MAIN;
 
@@ -84,6 +87,16 @@ export function Navigation({ user, isAdmin }: { user: Pick<User, "name" | "color
             </Link>
           ))}
         </nav>
+        {people.some((p) => isAvatarId(p.avatar)) && (
+          // The two of you at the foot of the menu - a shortcut to the shared view
+          <Link href="/together" className="group mb-3 flex items-end justify-center gap-1 rounded-2xl px-2 pt-2 transition hover:bg-surface-muted" title="Razem">
+            {people.filter((p) => isAvatarId(p.avatar)).map((p, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={p.id} src={AVATARS[p.avatar as AvatarId].full} alt={p.name}
+                className={cn("drop-shadow-md transition group-hover:-translate-y-0.5", i === 0 ? "h-24" : "h-20")} />
+            ))}
+          </Link>
+        )}
         <div className="border-t border-line pt-4">
           <div className="flex items-center gap-3 px-2">
             <Avatar user={user} size={36} />
@@ -96,6 +109,17 @@ export function Navigation({ user, isAdmin }: { user: Pick<User, "name" | "color
           </div>
         </div>
       </aside>
+
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-canvas/85 px-4 py-2.5 backdrop-blur lg:hidden">
+        <Link href="/" className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.svg" alt="" className="size-7" />
+          <span className="font-semibold tracking-tight">ExpenseTracker</span>
+        </Link>
+        <Link href="/together" className="flex -space-x-2" aria-label="Razem">
+          {people.map((p) => <Avatar key={p.id} user={p} size={32} ring />)}
+        </Link>
+      </header>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         {MOBILE.map((item) => {

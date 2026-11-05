@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { saveReceiptExpenses, scanReceipt } from "@/app/actions/receipts";
 import { Alert, Button, Card, CardTitle, CategoryBadge, Field, inputClass } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
 import { NavIcon } from "@/components/Navigation";
 import { splitByCategory, type ReceiptDraft, type ReceiptDraftItem } from "@/lib/ai/receipt-schema";
 import { cn } from "@/lib/cn";
 import { CURRENCIES, formatMoney, parseAmount, toInputValue } from "@/lib/money";
 import { PRODUCT_GROUPS, UNITS, type Unit } from "@/lib/product-groups";
-import type { Category } from "@/lib/types";
+import { splitAmount } from "@/lib/split";
+import type { Category, User } from "@/lib/types";
 
 const MAX_EDGE = 2000;
 
@@ -38,7 +40,9 @@ async function shrink(file: File): Promise<File> {
 
 type Stage = "pick" | "reading" | "review";
 
-export function ReceiptScanner({ categories }: { categories: Category[] }) {
+type Person = Pick<User, "id" | "name" | "color" | "picture" | "avatar">;
+
+export function ReceiptScanner({ categories, me, household }: { categories: Category[]; me: Person; household: Person[] }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("pick");
@@ -50,6 +54,7 @@ export function ReceiptScanner({ categories }: { categories: Category[] }) {
   const [singleCategory, setSingleCategory] = useState("");
   const [note, setNote] = useState("");
   const [tags, setTags] = useState("");
+  const [shared, setShared] = useState(false);
   const [saving, startSaving] = useTransition();
 
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -87,7 +92,7 @@ export function ReceiptScanner({ categories }: { categories: Category[] }) {
     if (!draft) return;
     setError(null);
     startSaving(async () => {
-      const result = await saveReceiptExpenses({ ...draft, receiptPath, mode, categoryId: singleCategory, note, tags });
+      const result = await saveReceiptExpenses({ ...draft, receiptPath, mode, categoryId: singleCategory, note, tags, shared });
       if (result.error) setError(result.error);
       else router.push(`/expenses?month=${result.month}`);
     });
@@ -174,6 +179,21 @@ export function ReceiptScanner({ categories }: { categories: Category[] }) {
 
         <Card>
           <CardTitle>Jak zapisać</CardTitle>
+          {household.length > 1 && (
+            <label className={cn("mb-3 flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition",
+              shared ? "border-accent bg-accent-soft/40" : "border-line hover:bg-surface-muted")}>
+              <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="size-5 accent-[var(--c-accent)]" />
+              <span className="flex -space-x-2">{household.map((p) => <Avatar key={p.id} user={p} size={30} ring />)}</span>
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="block font-medium">Wspólne zakupy</span>
+                <span className="block text-xs text-fg-muted">
+                  {shared
+                    ? household.map((p, i) => `${p.id === me.id ? "Ty" : p.name} ${formatMoney(splitAmount(draft.total, household.length, Math.max(0, household.findIndex((h) => h.id === me.id)))[i], draft.currency)}`).join(" · ")
+                    : "Podziel po równo między konta"}
+                </span>
+              </span>
+            </label>
+          )}
           <div className="grid grid-cols-2 gap-2 rounded-xl bg-surface-muted p-1 text-sm">
             {([["split", `Podziel na kategorie (${groups.length})`], ["single", "Jeden wydatek"]] as const).map(([value, label]) => (
               <button key={value} type="button" onClick={() => setMode(value)}
@@ -251,7 +271,7 @@ export function ReceiptScanner({ categories }: { categories: Category[] }) {
         {error && <Alert>{error}</Alert>}
         <div className="flex flex-wrap gap-2">
           <Button onClick={save} disabled={saving} className="flex-1 sm:flex-none">
-            {saving ? "Zapisywanie..." : mode === "split" && groups.length > 1 ? `Zapisz ${groups.length} wydatki` : "Zapisz wydatek"}
+            {saving ? "Zapisywanie..." : `${mode === "split" && groups.length > 1 ? `Zapisz ${groups.length} wydatki` : "Zapisz wydatek"}${shared ? " wspólnie" : ""}`}
           </Button>
           <Button variant="secondary" onClick={reset} disabled={saving}>Inny paragon</Button>
         </div>

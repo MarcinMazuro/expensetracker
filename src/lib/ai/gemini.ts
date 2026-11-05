@@ -1,6 +1,7 @@
 import "server-only";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { today } from "../dates";
+import { PRODUCT_GROUP_IDS } from "../product-groups";
 import type { Category } from "../types";
 import { normalizeReceipt, receiptJsonSchema, receiptPrompt, type ReceiptDraft } from "./receipt-schema";
 
@@ -82,4 +83,35 @@ ${list}`,
 
   const { categoryId } = JSON.parse(response.text ?? "{}") as { categoryId?: string };
   return categoryId && ids.includes(categoryId) ? categoryId : null;
+}
+
+/**
+ * Product name and group for lines typed by hand ("Marchewka myta" ->
+ * "marchew", vegetables), reusing the user's existing product names.
+ */
+export async function classifyItems(names: string[], knownProducts: string[]): Promise<{ product: string; group: string }[]> {
+  const response = await ai().models.generateContent({
+    model: model(),
+    contents: `For each shopping line below (Polish), give a generic base product name in Polish, lowercase, without brand or size, and its group.
+Reuse one of these existing names exactly when it is the same product: ${knownProducts.slice(0, 200).map((p) => JSON.stringify(p)).join(", ") || "(none yet)"}.
+Groups: ${PRODUCT_GROUP_IDS.join(", ")}.
+Lines:
+${names.map((n, i) => `${i + 1}. ${JSON.stringify(n)}`).join("\n")}`,
+    config: {
+      responseMimeType: "application/json",
+      responseJsonSchema: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { product: { type: "string" }, group: { type: "string", enum: PRODUCT_GROUP_IDS } },
+          required: ["product", "group"],
+        },
+      },
+      temperature: 0,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+      abortSignal: AbortSignal.timeout(20_000),
+    },
+  });
+  const result = JSON.parse(response.text ?? "[]") as { product: string; group: string }[];
+  return Array.isArray(result) ? result : [];
 }

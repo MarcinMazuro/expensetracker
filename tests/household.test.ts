@@ -53,6 +53,20 @@ describe("household", () => {
     expect(sharedFeed(members, "2026-11").map((f) => f.expense.id)).toEqual(["2", "4", "1"]);
   });
 
+  it("shows a shared expense once, at its full amount, and settles who owes whom", async () => {
+    const { settlement } = await import("@/lib/household");
+    const shared = { total: 10000, participants: ["m", "a"], paidBy: "m" };
+    const withShared: Member[] = [
+      { ...members[0], expenses: [...members[0].expenses, { ...expense("s1", "2026-11-04", 5000, "m-food", "Kaufland"), shared }] },
+      { ...members[1], expenses: [...members[1].expenses, { ...expense("s1", "2026-11-04", 5000, "a-food", "Kaufland"), shared }] },
+    ];
+    const feed = sharedFeed(withShared, "2026-11");
+    expect(feed[0]).toMatchObject({ amountPln: 10000, paidBy: { id: "m" } });
+    expect(feed[0].users.map((u) => u.id)).toEqual(["m", "a"]);
+    expect(feed).toHaveLength(4);
+    expect(settlement(withShared, "2026-11")).toEqual({ debts: [{ from: "a", to: "m", amount: 5000 }], sharedTotal: 10000, count: 1 });
+  });
+
   it("writes plain-language insights", () => {
     const text = insights(members, "2026-11").map((i) => i.text).join("\n");
     expect(text).toContain("o 50% więcej");

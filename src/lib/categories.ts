@@ -4,7 +4,7 @@ import type { Category } from "./types";
 
 export const CATEGORY_COLORS = [
   "#22c55e", "#f97316", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#eab308",
-  "#ef4444", "#6366f1", "#0ea5e9", "#d946ef", "#06b6d4", "#84cc16", "#78716c",
+  "#ef4444", "#fb7185", "#6366f1", "#0ea5e9", "#d946ef", "#06b6d4", "#84cc16", "#78716c",
 ];
 
 export async function listCategories(uid: string): Promise<Category[]> {

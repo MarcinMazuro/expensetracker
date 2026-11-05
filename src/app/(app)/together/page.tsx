@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { AVATARS, isAvatarId, type AvatarId } from "@/lib/access";
 import { Legend, PairedBars, RaceChart, ShareBar, StackedMonths } from "@/components/charts/Shared";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Card, CardTitle, ChangeBadge, EmptyState } from "@/components/ui";
 import { currentMonth, daysInMonth, formatDayShort, formatMonth, inMonth, isIsoMonth, monthRange, monthsBack, shiftMonth, today } from "@/lib/dates";
-import { compareCategories, cumulativeByPerson, insights, monthlyByPerson, personTotals, sharedFeed } from "@/lib/household";
+import { compareCategories, cumulativeByPerson, insights, monthlyByPerson, personTotals, settlement, sharedFeed } from "@/lib/household";
 import { loadHousehold } from "@/lib/household-data";
 import { formatMoney } from "@/lib/money";
 import { bookDueRecurring } from "@/lib/recurring";
 import { requireUser } from "@/lib/session";
 import { change } from "@/lib/stats";
+import { plural } from "@/lib/text";
 
 export const metadata: Metadata = { title: "Razem" };
 
@@ -33,6 +35,7 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
   const categories = compareCategories(members, month);
   const feed = sharedFeed(members, month);
   const notes = insights(members, month, now);
+  const settled = settlement(members, month);
   const isCurrent = month === currentMonth();
   const elapsed = isCurrent ? Number(now.slice(8, 10)) : daysInMonth(month);
 
@@ -80,7 +83,7 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
                 <Avatar user={p.user} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{p.user.id === user.id ? `${p.user.name} (Ty)` : p.user.name}</p>
-                  <p className="text-xs text-fg-muted">{p.count} wydatków · <ChangeBadge value={change(p.total, p.previous)} /></p>
+                  <p className="text-xs text-fg-muted">{plural(p.count, "wydatek", "wydatki", "wydatków")} · <ChangeBadge value={change(p.total, p.previous)} /></p>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold tabular">{formatMoney(p.total)}</p>
@@ -101,6 +104,38 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
               <CardTitle action={<Legend users={users} />}>Wyścig miesiąca - wydatki narastająco</CardTitle>
               <RaceChart series={cumulativeByPerson(members, month, now)} days={daysInMonth(month)} />
             </Card>
+            <div className="space-y-3">
+            <Card>
+              <CardTitle>Rozliczenie wspólnych</CardTitle>
+              {settled.count === 0 ? (
+                <p className="text-sm text-fg-muted">W tym miesiącu nie było wspólnych wydatków. Zaznacz „Wspólny wydatek” przy dodawaniu, a koszt rozłoży się po równo.</p>
+              ) : settled.debts.length === 0 ? (
+                <p className="flex items-center gap-3 text-sm"><span className="text-2xl" aria-hidden>🤝</span>Jesteście rozliczeni - każde zapłaciło tyle samo.</p>
+              ) : (
+                settled.debts.map((d) => {
+                  const from = users.find((u) => u.id === d.from)!;
+                  const to = users.find((u) => u.id === d.to)!;
+                  return (
+                    <div key={`${d.from}-${d.to}`} className="flex items-center gap-3">
+                      <Avatar user={from} size={52} />
+                      <div className="flex-1 text-center">
+                        <p className="text-xl font-semibold tabular">{formatMoney(d.amount)}</p>
+                        <div className="relative my-1 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${from.color}, ${to.color})` }}>
+                          <span className="absolute -top-[7px] -right-1 text-sm" style={{ color: to.color }} aria-hidden>▶</span>
+                        </div>
+                        <p className="text-xs text-fg-muted">do oddania: {from.name} → {to.name}</p>
+                      </div>
+                      <Avatar user={to} size={52} />
+                    </div>
+                  );
+                })
+              )}
+              {settled.count > 0 && (
+                <p className="mt-3 border-t border-line pt-3 text-xs text-fg-muted">
+                  {plural(settled.count, "wspólny wydatek", "wspólne wydatki", "wspólnych wydatków")} na {formatMoney(settled.sharedTotal)} {inMonth(month)}.
+                </p>
+              )}
+            </Card>
             <Card>
               <CardTitle>W skrócie</CardTitle>
               <ul className="space-y-3">
@@ -112,6 +147,7 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
                 ))}
               </ul>
             </Card>
+            </div>
           </div>
 
           <Card className="mt-3">
@@ -127,22 +163,40 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
             <Card className="px-3 lg:col-span-3">
               <CardTitle><span className="px-2">Ostatnie wydatki</span></CardTitle>
               <ul className="divide-y divide-line">
-                {feed.map(({ user: owner, expense, category }) => (
-                  <li key={`${owner.id}-${expense.id}`} className="flex items-center gap-3 px-2 py-2.5">
-                    <span className="relative">
-                      <span className="flex size-10 items-center justify-center rounded-xl text-lg"
-                        style={{ background: `color-mix(in oklab, ${category?.color ?? "#a8a29e"} 18%, transparent)` }} aria-hidden>
-                        {category?.emoji ?? "❔"}
+                {feed.map(({ users: owners, paidBy, expense, category, amountPln }) => {
+                  const mine = owners.some((o) => o.id === user.id);
+                  const row = (
+                    <>
+                      <span className="relative">
+                        <span className="flex size-10 items-center justify-center rounded-xl text-lg"
+                          style={{ background: `color-mix(in oklab, ${category?.color ?? "#a8a29e"} 18%, transparent)` }} aria-hidden>
+                          {category?.emoji ?? "❔"}
+                        </span>
+                        <span className="absolute -right-2 -bottom-1 flex -space-x-1.5">
+                          {owners.map((o) => <Avatar key={o.id} user={o} size={18} ring />)}
+                        </span>
                       </span>
-                      <Avatar user={owner} size={18} ring className="absolute -right-1 -bottom-1" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{expense.merchant}</span>
-                      <span className="block truncate text-xs text-fg-muted">{owner.name} · {category?.name ?? "Bez kategorii"} · {formatDayShort(expense.date)}</span>
-                    </span>
-                    <span className="text-sm font-medium tabular">{formatMoney(expense.amountPln)}</span>
-                  </li>
-                ))}
+                      <span className="min-w-0 flex-1 pl-1">
+                        <span className="flex items-center gap-1.5 truncate text-sm font-medium">
+                          {expense.merchant}
+                          {expense.shared && <span className="rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-medium text-accent">wspólny</span>}
+                        </span>
+                        <span className="block truncate text-xs text-fg-muted">
+                          {expense.shared ? `płacił(a) ${paidBy.name}` : paidBy.name} · {category?.name ?? "Bez kategorii"} · {formatDayShort(expense.date)}
+                        </span>
+                      </span>
+                      <span className="text-sm font-medium tabular">{formatMoney(amountPln)}</span>
+                    </>
+                  );
+                  // Everything opens for viewing and editing - your copy of a shared one, else the owner's
+                  const owner = mine ? user : owners[0];
+                  return (
+                    <li key={`${owners[0].id}-${expense.id}`}>
+                      <Link href={`/expenses/${expense.id}${owner.id === user.id ? "" : `?u=${owner.id}`}`}
+                        className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-surface-muted">{row}</Link>
+                    </li>
+                  );
+                })}
               </ul>
             </Card>
           </div>

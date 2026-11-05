@@ -4,6 +4,7 @@
  * are matched by name ("Spożywcze" is the same thing for both).
  */
 import { daysInMonth, shiftMonth } from "./dates";
+import { settle } from "./split";
 import { total } from "./stats";
 import type { Category, Expense, User } from "./types";
 
@@ -98,15 +99,50 @@ export function monthlyByPerson(members: Member[], months: string[]): { month: s
   });
 }
 
-/** Everyone's latest expenses in one feed. */
-export function sharedFeed(members: Member[], month: string, limit = 12): { user: User; expense: Expense; category?: Category }[] {
-  return members
-    .flatMap((m) => {
-      const byId = new Map(m.categories.map((c) => [c.id, c]));
-      return inMonth(m.expenses, month).map((expense) => ({ user: m.user, expense, category: byId.get(expense.categoryId) }));
-    })
+export interface FeedEntry {
+  expense: Expense;
+  category?: Category;
+  /** Who it belongs to - both people for a shared expense. */
+  users: User[];
+  paidBy: User;
+  /** The whole amount: a shared expense is shown once, not as two halves. */
+  amountPln: number;
+}
+
+/** Everyone's latest expenses in one feed; the copies of a shared expense merge into one entry. */
+export function sharedFeed(members: Member[], month: string, limit = 12): FeedEntry[] {
+  const entries = new Map<string, FeedEntry>();
+  const byId = new Map(members.map((m) => [m.user.id, m.user]));
+  for (const m of members) {
+    const categories = new Map(m.categories.map((c) => [c.id, c]));
+    for (const expense of inMonth(m.expenses, month)) {
+      const key = expense.shared ? `shared:${expense.id}` : `${m.user.id}:${expense.id}`;
+      const existing = entries.get(key);
+      if (existing) {
+        existing.amountPln += expense.amountPln;
+        if (!existing.users.includes(m.user)) existing.users.push(m.user);
+        continue;
+      }
+      const paidBy = (expense.shared && byId.get(expense.shared.paidBy)) || m.user;
+      // Show the payer's category for a shared expense, when it is the payer's copy
+      entries.set(key, { expense, category: categories.get(expense.categoryId), users: [m.user], paidBy, amountPln: expense.amountPln });
+    }
+  }
+  return [...entries.values()]
     .sort((a, b) => b.expense.date.localeCompare(a.expense.date) || b.expense.createdAt.localeCompare(a.expense.createdAt))
     .slice(0, limit);
+}
+
+/** Who owes whom this month for shared expenses (each person owes the payer their half). */
+export function settlement(members: Member[], month: string) {
+  const shares = members.flatMap((m) =>
+    inMonth(m.expenses, month)
+      .filter((e) => e.shared)
+      .map((e) => ({ owner: m.user.id, paidBy: e.shared!.paidBy, amount: e.amountPln })),
+  );
+  const sharedTotal = shares.reduce((s, x) => s + x.amount, 0);
+  const count = new Set(members.flatMap((m) => inMonth(m.expenses, month).filter((e) => e.shared).map((e) => e.id))).size;
+  return { debts: settle(shares), sharedTotal, count };
 }
 
 export interface Insight {

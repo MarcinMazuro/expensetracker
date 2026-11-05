@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PersonSwitcher } from "@/components/PersonSwitcher";
 import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Card, CardTitle, EmptyState, buttonClass, inputClass } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -8,6 +9,7 @@ import { listExpenses } from "@/lib/expenses";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity, isProductGroup, PRODUCT_GROUPS, type Unit } from "@/lib/product-groups";
 import { aggregateGroups, aggregateProducts, productLines, type Quantities } from "@/lib/products";
+import { resolveOwner } from "@/lib/people";
 import { requireUser } from "@/lib/session";
 import { matchesQuery } from "@/lib/text";
 
@@ -23,28 +25,34 @@ function QuantityList({ quantities }: { quantities: Quantities }) {
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
   const user = await requireUser();
   const params = await searchParams;
+  const { owner, people } = await resolveOwner(user, params.u);
+  const u = owner.id === user.id ? "" : owner.id;
   const month = isIsoMonth(params.month) ? params.month : currentMonth();
   const year = params.period === "year";
   const group = isProductGroup(params.group) ? params.group : "";
   const q = str(params.q).slice(0, 60);
 
   const from = year ? monthRange(monthsBack(month, 12)[0]).from : monthRange(month).from;
-  const expenses = await listExpenses(user.id, from, monthRange(month).to);
+  const expenses = await listExpenses(owner.id, from, monthRange(month).to);
   const lines = productLines(expenses);
   const groups = aggregateGroups(lines);
   const products = aggregateProducts(lines.filter((l) => (!group || l.group === group) && (!q || matchesQuery(l.product, q))));
 
   const query = (patch: Record<string, string>) => {
-    const next = { month, ...(year && { period: "year" }), ...(group && { group }), ...(q && { q }), ...patch };
+    const next = { month, ...(year && { period: "year" }), ...(group && { group }), ...(q && { q }), ...(u && { u }), ...patch };
     return `/products?${new URLSearchParams(Object.fromEntries(Object.entries(next).filter(([, v]) => v)))}`;
   };
-  const switchParams = Object.fromEntries(Object.entries({ period: year ? "year" : "", group, q }).filter(([, v]) => v));
+  const switchParams = Object.fromEntries(Object.entries({ period: year ? "year" : "", group, q, u }).filter(([, v]) => v));
 
   return (
     <>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Produkty</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">Produkty</h1>
+            <PersonSwitcher people={people} owner={owner} viewer={user} path="/products"
+              params={Object.fromEntries(Object.entries({ month, period: year ? "year" : "", group, q }).filter(([, v]) => v))} />
+          </div>
           <p className="mt-1 text-sm text-fg-muted">Co, ile i za ile kupujesz - z pozycji zeskanowanych paragonów.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -80,6 +88,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             <input type="hidden" name="month" value={month} />
             {year && <input type="hidden" name="period" value="year" />}
             {group && <input type="hidden" name="group" value={group} />}
+            {u && <input type="hidden" name="u" value={u} />}
             <input name="q" defaultValue={q} placeholder="Szukaj produktu, np. marchew" className={inputClass} />
             <button className={buttonClass("secondary")}>Szukaj</button>
           </form>
@@ -95,7 +104,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
             <ul className="divide-y divide-line sm:hidden">
               {products.map((p) => (
                 <li key={p.key}>
-                  <Link href={`/products/${p.key}?month=${month}`} className="flex items-center gap-3 px-2 py-2.5">
+                  <Link href={`/products/${p.key}?month=${month}${u ? `&u=${u}` : ""}`} className="flex items-center gap-3 px-2 py-2.5">
                     <span aria-hidden>{PRODUCT_GROUPS[p.group].emoji}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium first-letter:uppercase">{p.product}</span>
@@ -126,7 +135,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
                   {products.map((p) => (
                     <tr key={p.key} className="transition hover:bg-surface-muted">
                       <td className="px-2 py-2.5">
-                        <Link href={`/products/${p.key}?month=${month}`} className="flex items-center gap-2 font-medium first-letter:uppercase hover:underline">
+                        <Link href={`/products/${p.key}?month=${month}${u ? `&u=${u}` : ""}`} className="flex items-center gap-2 font-medium first-letter:uppercase hover:underline">
                           <span aria-hidden>{PRODUCT_GROUPS[p.group].emoji}</span>{p.product}
                         </Link>
                       </td>

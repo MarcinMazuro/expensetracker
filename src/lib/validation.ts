@@ -1,7 +1,8 @@
 /** Server-side validation - never trust what comes from a form. */
 import { isIsoDate } from "./dates";
 import { isCurrency, parseAmount, type Currency } from "./money";
-import type { Interval } from "./types";
+import { isProductGroup, isUnit } from "./product-groups";
+import type { Interval, ReceiptItem } from "./types";
 
 export function isEmail(value: unknown): value is string {
   return typeof value === "string" && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
@@ -85,4 +86,43 @@ export function formObject(formData: FormData): Record<string, string> {
     if (typeof value === "string") result[key] = value;
   }
   return result;
+}
+
+/**
+ * Lines typed by hand (or edited on a receipt), sent from the form as JSON.
+ * Product and group are kept when the line already has them; the server
+ * fills them in for new lines.
+ */
+export function parseItemsJson(value: unknown, categoryIds?: Set<string>): Parsed<ReceiptItem[]> {
+  if (typeof value !== "string" || value.trim() === "") return { ok: true, value: [] };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(value);
+  } catch {
+    return { ok: false, error: "Nieprawidłowe pozycje." };
+  }
+  if (!Array.isArray(raw) || raw.length > 150) return { ok: false, error: "Nieprawidłowe pozycje." };
+
+  const items: ReceiptItem[] = [];
+  for (const [index, row] of raw.entries()) {
+    const r = (row ?? {}) as Record<string, unknown>;
+    const name = optionalText(r.name, 120);
+    const amount = parseAmount(r.amount);
+    const quantity = typeof r.quantity === "number" ? r.quantity : Number(String(r.quantity ?? "").replace(",", "."));
+    // Completely empty rows (added and left blank) are skipped
+    if (!name && amount === null) continue;
+    if (!name) return { ok: false, error: `Pozycja ${index + 1}: podaj nazwę.` };
+    if (amount === null || amount < 0 || amount > MAX_AMOUNT) return { ok: false, error: `Pozycja „${name}”: podaj cenę, np. 4,99.` };
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity >= 10_000) return { ok: false, error: `Pozycja „${name}”: podaj ilość większą od zera.` };
+    items.push({
+      name,
+      amount,
+      quantity: Math.round(quantity * 1000) / 1000,
+      unit: isUnit(r.unit) ? r.unit : "szt",
+      ...(typeof r.product === "string" && r.product.trim() && { product: r.product.trim().toLowerCase().slice(0, 60) }),
+      ...(isProductGroup(r.group) && { group: r.group }),
+      ...(typeof r.categoryId === "string" && (!categoryIds || categoryIds.has(r.categoryId)) && { categoryId: r.categoryId }),
+    });
+  }
+  return { ok: true, value: items };
 }

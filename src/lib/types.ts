@@ -47,6 +47,16 @@ export interface ReceiptItem {
   categoryId?: string;
 }
 
+export interface SharedInfo {
+  /** The whole amount before splitting, in the expense currency. */
+  total: number;
+  /** User ids, in a fixed order - the order decides who gets the odd grosz. */
+  participants: string[];
+  paidBy: string;
+  /** The receipt lines before splitting, for editing the whole expense. */
+  items?: ReceiptItem[];
+}
+
 export interface Expense {
   id: string;
   /** Amount in the original currency, minor units. */
@@ -66,8 +76,12 @@ export interface Expense {
   receiptPath?: string;
   items?: ReceiptItem[];
   recurringId?: string;
+  /** Set on both copies of an expense split equally between people. */
+  shared?: SharedInfo;
   createdAt: string;
   updatedAt: string;
+  /** Who last changed it - shown when it was the other person. */
+  updatedBy?: string;
 }
 
 export type Interval = "weekly" | "monthly" | "quarterly" | "yearly";

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PersonSwitcher } from "@/components/PersonSwitcher";
 import { BarChart } from "@/components/charts/BarChart";
 import { Card, CardTitle, CategoryDot, buttonClass } from "@/components/ui";
 import { categoryMap, listCategories, UNKNOWN_CATEGORY } from "@/lib/categories";
 import { currentMonth, formatMonth, formatMonthShort, monthRange, monthsBack } from "@/lib/dates";
 import { listExpenses } from "@/lib/expenses";
 import { formatMoney, formatMoneyShort } from "@/lib/money";
+import { resolveOwner } from "@/lib/people";
 import { requireUser } from "@/lib/session";
 import { byCategory, byWeekday, categoryByMonth, monthlyTotals, total } from "@/lib/stats";
 
@@ -13,13 +15,15 @@ export const metadata: Metadata = { title: "Raporty" };
 
 const WEEKDAYS = ["pon", "wt", "śr", "czw", "pt", "sob", "nd"];
 
-export default async function ReportsPage() {
+export default async function ReportsPage({ searchParams }: PageProps<"/reports">) {
   const user = await requireUser();
+  const { owner, people } = await resolveOwner(user, (await searchParams).u);
+  const u = owner.id === user.id ? "" : owner.id;
   const month = currentMonth();
   const months = monthsBack(month, 12);
   const [categories, expenses] = await Promise.all([
-    listCategories(user.id),
-    listExpenses(user.id, monthRange(months[0]).from, monthRange(month).to),
+    listCategories(owner.id),
+    listExpenses(owner.id, monthRange(months[0]).from, monthRange(month).to),
   ]);
   const categoriesById = categoryMap(categories);
   const category = (id: string) => categoriesById.get(id) ?? UNKNOWN_CATEGORY;
@@ -40,13 +44,16 @@ export default async function ReportsPage() {
     <>
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Raporty</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">Raporty</h1>
+            <PersonSwitcher people={people} owner={owner} viewer={user} path="/reports" />
+          </div>
           <p className="mt-1 text-sm text-fg-muted">Ostatnie 12 miesięcy · razem {formatMoney(total(expenses))}</p>
         </div>
         <div className="flex gap-2">
-          <Link href={`/products?month=${month}&period=year`} className={buttonClass("secondary")}>Produkty</Link>
-          <a href={`/api/export?year=${year}`} className={buttonClass("secondary")} download>CSV {year}</a>
-          <a href={`/api/export?year=${Number(year) - 1}`} className={buttonClass("secondary")} download>CSV {Number(year) - 1}</a>
+          <Link href={`/products?month=${month}&period=year${u ? `&u=${u}` : ""}`} className={buttonClass("secondary")}>Produkty</Link>
+          <a href={`/api/export?year=${year}${u ? `&u=${u}` : ""}`} className={buttonClass("secondary")} download>CSV {year}</a>
+          <a href={`/api/export?year=${Number(year) - 1}${u ? `&u=${u}` : ""}`} className={buttonClass("secondary")} download>CSV {Number(year) - 1}</a>
         </div>
       </header>
 
@@ -81,7 +88,7 @@ export default async function ReportsPage() {
                       const value = heat.get(r.categoryId)?.get(m) ?? 0;
                       return (
                         <td key={m} className="p-0.5">
-                          <Link href={`/expenses?month=${m}&category=${r.categoryId}`} title={`${c.name}, ${formatMonth(m)}: ${formatMoney(value)}`}
+                          <Link href={`/expenses?month=${m}&category=${r.categoryId}${u ? `&u=${u}` : ""}`} title={`${c.name}, ${formatMonth(m)}: ${formatMoney(value)}`}
                             className="block rounded-md px-1 py-1.5 text-center tabular transition hover:ring-2 hover:ring-accent"
                             style={{ background: value ? `color-mix(in oklab, ${c.color} ${Math.round(12 + (value / max) * 70)}%, transparent)` : undefined }}>
                             {value ? formatMoneyShort(value).replace(/\s?zł/, "") : "·"}
@@ -109,7 +116,7 @@ export default async function ReportsPage() {
           <ol className="space-y-2.5 text-sm">
             {biggest.map((e) => (
               <li key={e.id}>
-                <Link href={`/expenses/${e.id}`} className="flex items-center gap-3 hover:underline">
+                <Link href={`/expenses/${e.id}${u ? `?u=${u}` : ""}`} className="flex items-center gap-3 hover:underline">
                   <span aria-hidden>{category(e.categoryId).emoji}</span>
                   <span className="flex-1 truncate">{e.merchant} <span className="text-fg-muted">· {e.date}</span></span>
                   <span className="tabular">{formatMoney(e.amountPln)}</span>

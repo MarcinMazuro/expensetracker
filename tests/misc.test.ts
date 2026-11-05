@@ -81,3 +81,37 @@ describe("NBP rates", () => {
     expect(pickRate(response, "2026-10-01")).toBeNull();
   });
 });
+
+describe("items typed by hand", () => {
+  it("parses rows, skips blank ones and keeps known product fields", async () => {
+    const { parseItemsJson } = await import("@/lib/validation");
+    const json = JSON.stringify([
+      { name: "Marchew", quantity: "1,5", unit: "kg", amount: "4,49" },
+      { name: "", amount: "" },
+      { name: "Mleko", quantity: 2, unit: "l", amount: "7,98", product: "Mleko", group: "dairy" },
+    ]);
+    expect(parseItemsJson(json)).toEqual({ ok: true, value: [
+      { name: "Marchew", amount: 449, quantity: 1.5, unit: "kg" },
+      { name: "Mleko", amount: 798, quantity: 2, unit: "l", product: "mleko", group: "dairy" },
+    ] });
+  });
+
+  it("explains what is wrong with a row", async () => {
+    const { parseItemsJson } = await import("@/lib/validation");
+    const bad = (row: object) => parseItemsJson(JSON.stringify([row]));
+    expect(bad({ name: "Chleb", amount: "x", quantity: 1 })).toMatchObject({ ok: false, error: expect.stringContaining("cenę") });
+    expect(bad({ name: "Chleb", amount: "5", quantity: 0 })).toMatchObject({ ok: false, error: expect.stringContaining("ilość") });
+    expect(bad({ amount: "5", quantity: 1 })).toMatchObject({ ok: false, error: expect.stringContaining("nazwę") });
+    expect(parseItemsJson("not json").ok).toBe(false);
+    expect(parseItemsJson("")).toEqual({ ok: true, value: [] });
+  });
+});
+
+describe("Polish plurals", () => {
+  it("picks the right form", async () => {
+    const { plural } = await import("@/lib/text");
+    expect([1, 2, 4, 5, 12, 22, 25, 101].map((n) => plural(n, "wydatek", "wydatki", "wydatków"))).toEqual([
+      "1 wydatek", "2 wydatki", "4 wydatki", "5 wydatków", "12 wydatków", "22 wydatki", "25 wydatków", "101 wydatków",
+    ]);
+  });
+});

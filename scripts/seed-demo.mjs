@@ -40,7 +40,7 @@ const monthIndex = (date) => days.indexOf(date) / 30; // ~0..3, for slow price i
 const CATEGORIES = [
   ["Spożywcze", "🛒", "#22c55e"], ["Restauracje i kawiarnie", "🍽️", "#f97316"], ["Transport", "🚗", "#3b82f6"],
   ["Mieszkanie i rachunki", "🏠", "#8b5cf6"], ["Zdrowie i uroda", "💊", "#ec4899"], ["Chemia i dom", "🧴", "#14b8a6"],
-  ["Ubrania", "👕", "#eab308"], ["Rozrywka i hobby", "🎮", "#ef4444"], ["Subskrypcje", "📺", "#6366f1"],
+  ["Ubrania", "👕", "#eab308"], ["Rozrywka i hobby", "🎮", "#ef4444"], ["Sport", "🏋️", "#fb7185"], ["Subskrypcje", "📺", "#6366f1"],
   ["Elektronika", "💻", "#0ea5e9"], ["Prezenty", "🎁", "#d946ef"], ["Podróże", "✈️", "#06b6d4"],
   ["Edukacja", "📚", "#84cc16"], ["Inne", "📦", "#78716c"],
 ];
@@ -104,9 +104,9 @@ function generate(person) {
     const wd = weekday(date);
     const dom = Number(date.slice(8, 10));
 
-    // Groceries: Marcin does the big weekend shop, Agnieszka small top-ups during the week
-    if ((marcin && wd === 5) || (!marcin && chance(0.28)) || (marcin && chance(0.08))) {
-      const items = receiptItems(GROCERIES, marcin && wd === 5 ? 9 : 4, date, marcin ? ["pierś z kurczaka", "marchew"] : ["jabłka"]);
+    // Small top-ups during the week (the big weekend shop is shared - see generateShared)
+    if ((!marcin && chance(0.28)) || (marcin && chance(0.08))) {
+      const items = receiptItems(GROCERIES, 4, date, marcin ? ["pierś z kurczaka"] : ["jabłka"]);
       const merchant = !marcin && chance(0.3) ? "Żabka" : pick(GROCERY_SHOPS);
       add(date, "Spożywcze", merchant, 0, { items, source: "receipt" });
     }
@@ -115,7 +115,6 @@ function generate(person) {
     // Eating out
     if (!marcin && wd < 5 && chance(0.35)) add(date, "Restauracje i kawiarnie", pick(["Costa Coffee", "Starbucks", "Green Caffè Nero"]), between(14, 26));
     if (marcin && wd < 5 && chance(0.2)) add(date, "Restauracje i kawiarnie", pick(["Kebab King", "Bistro Pod Lipą", "Pyszne.pl"]), between(28, 62));
-    if (wd === 4 && chance(0.5)) add(date, "Restauracje i kawiarnie", pick(["Sushi Kushi", "Pizzeria Napoli", "Ramen Ya"]), between(90, 190), { note: "kolacja na mieście" });
 
     // Transport
     if (marcin && dom % 10 === 3) add(date, "Transport", pick(["Orlen", "BP", "Shell"]), between(240, 330), { tags: ["auto"] });
@@ -130,7 +129,7 @@ function generate(person) {
     // Subscriptions
     if (marcin && dom === 5) add(date, "Subskrypcje", "Netflix", 67, { source: "recurring", recurring: "netflix" });
     if (!marcin && dom === 12) add(date, "Subskrypcje", "Spotify Duo", 29.99, { source: "recurring", recurring: "spotify" });
-    if (dom === 2) add(date, "Rozrywka i hobby", "Zdrofit karnet", marcin ? 149 : 129, { source: "recurring", recurring: "gym" });
+    if (dom === 2) add(date, "Sport", "Zdrofit karnet", marcin ? 149 : 129, { source: "recurring", recurring: "gym" });
 
     // Personal
     if (!marcin && chance(0.05)) add(date, "Zdrowie i uroda", pick(["Hebe", "Rossmann kosmetyki", "Fryzjer Studio Look"]), between(45, 210));
@@ -147,24 +146,49 @@ function generate(person) {
     add(at(24), "Elektronika", "Media Expert - słuchawki Sony", 899, { note: "WH-1000XM6, promocja" });
     add(at(70), "Prezenty", "Apart", 420, { note: "prezent na rocznicę", tags: ["rocznica"] });
   } else {
-    add(at(40), "Podróże", "Booking.com - Zakopane", 0, { currency: "EUR", eur: 149, tags: ["wyjazd"], note: "weekend w górach" });
-    add(at(41), "Podróże", "Karczma Zapiecek", 186, { tags: ["wyjazd"] });
     add(at(72), "Prezenty", "Empik", 129, { note: "urodziny Kasi" });
   }
   return out;
 }
 
+/** Things the two of you pay for together - split equally, one person pays. */
+function generateShared() {
+  const out = [];
+  const add = (date, paidBy, category, merchant, zl, extra = {}) => out.push({ date, paidBy, category, merchant, amount: grosze(zl), ...extra });
+  for (const date of days) {
+    const wd = weekday(date);
+    // The big Saturday shop, mostly paid by Marcin
+    if (wd === 5) {
+      const items = receiptItems(GROCERIES, 9, date, ["pierś z kurczaka", "marchew", "mleko"]);
+      add(date, chance(0.65) ? "marcin" : "agnieszka", "Spożywcze", pick(GROCERY_SHOPS), 0, { items, source: "receipt" });
+    }
+    if (wd === 4 && chance(0.5)) {
+      add(date, chance(0.5) ? "marcin" : "agnieszka", "Restauracje i kawiarnie", pick(["Sushi Kushi", "Pizzeria Napoli", "Ramen Ya"]), between(110, 230), { note: "kolacja na mieście" });
+    }
+  }
+  const at = (offset) => days[Math.min(days.length - 1, offset)];
+  add(at(40), "agnieszka", "Podróże", "Booking.com - Zakopane", 0, { currency: "EUR", eur: 298, tags: ["wyjazd"], note: "weekend w górach" });
+  add(at(41), "marcin", "Podróże", "Karczma Zapiecek", 186, { tags: ["wyjazd"] });
+  add(at(55), "marcin", "Chemia i dom", "IKEA", 412.5, { note: "zasłony i lampka" });
+  return out;
+}
+
+const splitAmount = (total, people, payerIndex) => {
+  const base = Math.floor(total / people);
+  return Array.from({ length: people }, (_, i) => base + (i === payerIndex ? total - base * people : 0));
+};
+
 const RECURRING = {
   marcin: [
     { key: "rent", name: "Czynsz", amount: 2850, category: "Mieszkanie i rachunki", interval: "monthly", day: 10 },
     { key: "netflix", name: "Netflix", amount: 67, category: "Subskrypcje", interval: "monthly", day: 5 },
-    { key: "gym", name: "Zdrofit karnet", amount: 149, category: "Rozrywka i hobby", interval: "monthly", day: 2 },
+    { key: "gym", name: "Zdrofit karnet", amount: 149, category: "Sport", interval: "monthly", day: 2 },
   ],
   agnieszka: [
     { key: "spotify", name: "Spotify Duo", amount: 29.99, category: "Subskrypcje", interval: "monthly", day: 12 },
     { key: "internet", name: "Orange internet", amount: 69.99, category: "Mieszkanie i rachunki", interval: "monthly", day: 20 },
     { key: "ztm", name: "ZTM bilet miesięczny", amount: 110, category: "Transport", interval: "monthly", day: 1 },
-    { key: "gym", name: "Zdrofit karnet", amount: 129, category: "Rozrywka i hobby", interval: "monthly", day: 2 },
+    { key: "gym", name: "Zdrofit karnet", amount: 129, category: "Sport", interval: "monthly", day: 2 },
   ],
 };
 
@@ -203,6 +227,7 @@ async function main() {
   for (const doc of existing.docs) await db.recursiveDelete(doc.ref);
   console.log(`Removed ${existing.size} account(s) from "${DATABASE}".`);
 
+  const people = {};
   for (const [index, person] of PEOPLE.entries()) {
     const userRef = db.collection("users").doc(person.key);
     const createdAt = new Date(Date.UTC(2026, 6, 1 + index)).toISOString();
@@ -210,14 +235,12 @@ async function main() {
       email: person.email, name: person.name, role: person.role, disabled: false, sessionVersion: 1,
       createdAt, color: person.color, avatar: person.avatar,
     }]];
-
     const categoryIds = {};
     CATEGORIES.forEach(([name, emoji, color], order) => {
       const ref = userRef.collection("categories").doc();
       categoryIds[name] = ref.id;
       writes.push([ref, { name, emoji, color, order, budget: grosze(BUDGETS[person.key][name] ?? 0) }]);
     });
-
     const recurringIds = {};
     for (const r of RECURRING[person.key]) {
       const ref = userRef.collection("recurring").doc(`demo-${r.key}`);
@@ -227,34 +250,69 @@ async function main() {
         nextDate: nextMonthly(r.day), anchorDay: r.day, active: true, createdAt,
       }]);
     }
+    people[person.key] = { person, userRef, writes, categoryIds, recurringIds, merchants: new Map(), products: new Map(), spent: 0, count: 0 };
+  }
 
-    const expenses = generate(person.key);
-    const merchants = new Map();
-    const products = new Map();
-    let spent = 0;
-    for (const [i, e] of expenses.entries()) {
+  const time = (date, i) => `${date}T${String(8 + (i % 12)).padStart(2, "0")}:${String((i * 7) % 60).padStart(2, "0")}:00.000Z`;
+  const record = (p, e, doc) => {
+    p.writes.push([p.userRef.collection("expenses").doc(doc.id), doc.data]);
+    p.merchants.set(merchantKey(e.merchant), { name: e.merchant, categoryId: p.categoryIds[e.category], lastUsed: doc.data.createdAt });
+    for (const item of doc.data.items ?? []) p.products.set(merchantKey(item.product), { name: item.product, group: item.group, lastUsed: doc.data.createdAt });
+    p.spent += doc.data.amountPln;
+    p.count++;
+  };
+
+  for (const p of Object.values(people)) {
+    for (const [i, e] of generate(p.person.key).entries()) {
       const amount = e.items ? e.items.reduce((s, item) => s + item.amount, 0) : e.amount;
       const fxRate = e.currency === "EUR" ? 4.2875 : 1;
       const original = e.currency === "EUR" ? grosze(e.eur) : amount;
-      const amountPln = Math.round(original * fxRate);
-      spent += amountPln;
-      const id = e.recurring ? `recurring_${recurringIds[e.recurring]}_${e.date}` : `demo-${String(i).padStart(4, "0")}`;
-      const time = `${e.date}T${String(8 + (i % 12)).padStart(2, "0")}:${String((i * 7) % 60).padStart(2, "0")}:00.000Z`;
-      writes.push([userRef.collection("expenses").doc(id), {
-        amount: original, currency: e.currency ?? "PLN", amountPln, fxRate, date: e.date, merchant: e.merchant,
-        categoryId: categoryIds[e.category], note: e.note ?? "", tags: e.tags ?? (e.recurring ? ["cykliczne"] : []),
-        source: e.source ?? "manual", createdAt: time, updatedAt: time,
-        ...(e.items && { items: e.items.map((item) => ({ ...item, categoryId: categoryIds[e.category] })) }),
-        ...(e.recurring && { recurringId: recurringIds[e.recurring] }),
-      }]);
-      merchants.set(merchantKey(e.merchant), { name: e.merchant, categoryId: categoryIds[e.category], lastUsed: time });
-      for (const item of e.items ?? []) products.set(merchantKey(item.product), { name: item.product, group: item.group, lastUsed: time });
+      record(p, e, {
+        id: e.recurring ? `recurring_${p.recurringIds[e.recurring]}_${e.date}` : `demo-${String(i).padStart(4, "0")}`,
+        data: {
+          amount: original, currency: e.currency ?? "PLN", amountPln: Math.round(original * fxRate), fxRate, date: e.date, merchant: e.merchant,
+          categoryId: p.categoryIds[e.category], note: e.note ?? "", tags: e.tags ?? (e.recurring ? ["cykliczne"] : []),
+          source: e.source ?? "manual", createdAt: time(e.date, i), updatedAt: time(e.date, i),
+          ...(e.items && { items: e.items.map((item) => ({ ...item, categoryId: p.categoryIds[e.category] })) }),
+          ...(e.recurring && { recurringId: p.recurringIds[e.recurring] }),
+        },
+      });
     }
-    for (const [key, data] of merchants) writes.push([userRef.collection("merchants").doc(key), data]);
-    for (const [key, data] of products) writes.push([userRef.collection("products").doc(key), data]);
+  }
 
-    await commitAll(writes);
-    console.log(`${person.name}: ${expenses.length} expenses, ${(spent / 100).toFixed(2)} PLN since ${start}`);
+  // Shared expenses: one copy per person under the same id, each with their half
+  const order = PEOPLE.map((x) => x.key);
+  for (const [i, e] of generateShared().entries()) {
+    const fxRate = e.currency === "EUR" ? 4.2875 : 1;
+    const total = e.currency === "EUR" ? grosze(e.eur) : e.items ? e.items.reduce((s, item) => s + item.amount, 0) : e.amount;
+    const payerIndex = order.indexOf(e.paidBy);
+    const shares = splitAmount(total, order.length, payerIndex);
+    order.forEach((key, index) => {
+      const p = people[key];
+      const items = e.items?.map((item) => ({
+        ...item,
+        categoryId: p.categoryIds[e.category],
+        amount: splitAmount(item.amount, order.length, payerIndex)[index],
+        quantity: Math.round((item.quantity / order.length) * 1000) / 1000,
+      }));
+      record(p, e, {
+        id: `shared-${String(i).padStart(4, "0")}`,
+        data: {
+          amount: shares[index], currency: e.currency ?? "PLN", amountPln: Math.round(shares[index] * fxRate), fxRate, date: e.date, merchant: e.merchant,
+          categoryId: p.categoryIds[e.category], note: e.note ?? "", tags: e.tags ?? [], source: e.source ?? "manual",
+          createdAt: time(e.date, i + 500), updatedAt: time(e.date, i + 500),
+          ...(items && { items }),
+          shared: { total, participants: order, paidBy: e.paidBy, ...(e.items && { items: e.items }) },
+        },
+      });
+    });
+  }
+
+  for (const p of Object.values(people)) {
+    for (const [key, data] of p.merchants) p.writes.push([p.userRef.collection("merchants").doc(key), data]);
+    for (const [key, data] of p.products) p.writes.push([p.userRef.collection("products").doc(key), data]);
+    await commitAll(p.writes);
+    console.log(`${p.person.name}: ${p.count} expenses, ${(p.spent / 100).toFixed(2)} PLN since ${start}`);
   }
 }
 

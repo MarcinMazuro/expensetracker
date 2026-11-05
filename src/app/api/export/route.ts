@@ -3,16 +3,18 @@ import { expensesToCsv } from "@/lib/csv";
 import { currentMonth, isIsoMonth, monthRange } from "@/lib/dates";
 import { listExpenses } from "@/lib/expenses";
 import { filterExpenses } from "@/lib/filters";
+import { resolveOwner } from "@/lib/people";
 import { currentUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 /** CSV of one month (or a whole year with ?year=2026), with the same filters as the list. */
 export async function GET(request: Request) {
-  const user = await currentUser();
-  if (!user) return new Response("Unauthorized", { status: 401 });
+  const viewer = await currentUser();
+  if (!viewer) return new Response("Unauthorized", { status: 401 });
 
   const params = new URL(request.url).searchParams;
+  const { owner: user } = await resolveOwner(viewer, params.get("u"));
   const year = params.get("year");
   let from: string, to: string, label: string;
   if (year && /^\d{4}$/.test(year)) {

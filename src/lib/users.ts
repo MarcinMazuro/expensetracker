@@ -84,3 +84,8 @@ export async function revokeSessions(uid: string): Promise<User | null> {
 export async function updateUser(uid: string, fields: Partial<Pick<User, "name" | "role" | "disabled" | "picture" | "lastLoginAt" | "avatar">>) {
   await userDoc(uid).update(fields);
 }
+
+/** Everyone who can share expenses: active accounts, in sign-up order. */
+export async function activeUsers(): Promise<User[]> {
+  return (await listUsers()).filter((u) => !u.disabled);
+}

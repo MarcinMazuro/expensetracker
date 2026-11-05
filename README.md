@@ -15,6 +15,12 @@ GitHub Actions + Cloud Build (Workload Identity Federation, no keys).
   share, a "race" of running totals through the month, who spends what per
   category, a 6-month stacked trend, a merged feed and plain-language
   insights. Each person has a colour and an avatar used consistently.
+- **Shared expenses** - tick "shared" and the cost is split equally: each
+  account gets its own half (the odd grosz goes to the payer), editing or
+  deleting from either account updates both, and the shared view shows who
+  owes whom.
+- **Lines and quantities for any expense** - typed by hand as well as read
+  from receipts; product and group come from the product memory or Gemini.
 - **Receipt scanning** - photo is scaled down in the browser, stored in a
   private bucket, read by Gemini with a strict JSON schema (the model can only
   answer with your own category IDs), validated again on the server. Discounts

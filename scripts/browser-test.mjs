@@ -91,6 +91,14 @@ const fill = (selector, value) => evaluate(`(() => {
   el.dispatchEvent(new Event("change", { bubbles: true }));
   return true;
 })()`);
+const fillNth = (selector, n, value) => evaluate(`(() => {
+  const el = document.querySelectorAll(${JSON.stringify(selector)})[${n}];
+  const proto = el instanceof HTMLSelectElement ? HTMLSelectElement : HTMLInputElement;
+  Object.getOwnPropertyDescriptor(proto.prototype, "value").set.call(el, ${JSON.stringify(value)});
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+})()`);
 const click = (selector) => evaluate(`(document.querySelector(${JSON.stringify(selector)}).click(), true)`);
 const clickText = (text) => evaluate(`(() => {
   const el = [...document.querySelectorAll("button, a")].find((e) => e.textContent.trim().startsWith(${JSON.stringify(text)}));
@@ -131,6 +139,67 @@ try {
   await fill("input[name=tags]", "auto, test");
   await click("form button[type=submit]:not([name])");
   await waitFor(`location.pathname === "/expenses" && document.body.innerText.includes("Stacja Orlen paliwo")`);
+
+  step("shared expense with lines typed by hand");
+  await goto("/expenses/new");
+  await fill("input[name=merchant]", "Test Kaufland wspólny");
+  await fill("select[name=categoryId]", await evaluate(`[...document.querySelectorAll("select[name=categoryId] option")].find((o) => o.textContent.includes("Spożywcze")).value`));
+  await clickText("Pozycje i ilości");
+  await waitFor(`!!document.querySelector("input[aria-label='Nazwa pozycji']")`);
+  await fill("input[aria-label='Nazwa pozycji']", "Marchew myta");
+  await fill("input[aria-label='Ilość']", "1,5");
+  await fill("select[aria-label='Jednostka']", "kg");
+  await fill("input[aria-label='Cena pozycji']", "6,00");
+  await clickText("+ Dodaj pozycję");
+  await fillNth("input[aria-label='Nazwa pozycji']", 1, "Mleko 2%");
+  await fillNth("input[aria-label='Ilość']", 1, "2");
+  await fillNth("select[aria-label='Jednostka']", 1, "l");
+  await fillNth("input[aria-label='Cena pozycji']", 1, "8,01");
+  await waitFor(`document.querySelector("input[name=amount]").value === "14,01"`);
+  await click("input[name=shared]");
+  await waitFor(`document.body.innerText.replace(/\\s+/g, " ").includes("Ty 7,01 zł")`);
+  await shot("shared-form-phone");
+  await click("form button[type=submit]:not([name])");
+  await waitFor(`location.pathname === "/expenses" && document.body.innerText.includes("Test Kaufland wspólny")`, 40000);
+  const row = await evaluate(`[...document.querySelectorAll("main a")].find((a) => a.innerText.includes("Test Kaufland wspólny")).innerText.replace(/\\s+/g, " ")`);
+  console.log(`    list: ${row}`);
+  if (!row.includes("7,01") || !row.includes("14,01") || !row.includes("wspólny")) throw new Error("shared expense should show my 7,01 of 14,01");
+
+  step("edit the shared expense - change a line price");
+  await evaluate(`([...document.querySelectorAll("main a")].find((a) => a.innerText.includes("Test Kaufland wspólny")).click(), true)`);
+  await waitFor(`document.querySelectorAll("input[aria-label='Cena pozycji']").length === 2`);
+  await fillNth("input[aria-label='Cena pozycji']", 1, "10,00");
+  await waitFor(`document.querySelector("input[name=amount]").value === "16,00"`);
+  await click("form button[type=submit]:not([name])");
+  await waitFor(`location.pathname === "/expenses" && document.body.innerText.replace(/\\s+/g, " ").includes("8,00 zł")`, 40000);
+  await goto("/together");
+  const feed = await evaluate(`[...document.querySelectorAll("main li")].find((li) => li.innerText.includes("Test Kaufland wspólny"))?.innerText.replace(/\\s+/g, " ") ?? ""`);
+  console.log(`    together: ${feed}`);
+  if (!feed.includes("16,00")) throw new Error("the shared view should show the whole 16,00");
+  await shot("together-after-edit");
+
+  step("full access to the other person's expenses: view, edit, delete");
+  await goto("/expenses");
+  await evaluate(`([...document.querySelectorAll("[role=tablist] a")].find((a) => !a.innerText.includes("Moje")).click(), true)`);
+  await waitFor(`location.search.includes("u=")`);
+  const other = await evaluate(`new URLSearchParams(location.search).get("u")`);
+  await waitFor(`!!document.querySelector("main a[href*='/expenses/'][href*='u=']")`);
+  await shot("other-person-list");
+  await evaluate(`(document.querySelector("main a[href*='/expenses/'][href*='u=']").click(), true)`);
+  await waitFor(`/^\\/expenses\\/[^/]+$/.test(location.pathname) && document.body.innerText.includes("Wydatek z konta")`);
+  const theirId = await evaluate("location.pathname.split('/').pop()");
+  await fill("textarea[name=note]", "poprawione przez test");
+  await click("form button[type=submit]:not([name])");
+  await waitFor(`location.pathname === "/expenses" && location.search.includes("u=${other}")`, 40000);
+  await goto(`/expenses/${theirId}?u=${other}`);
+  await waitFor(`document.body.innerText.includes("ostatnio zmienił(a)") && document.querySelector("textarea[name=note]").value === "poprawione przez test"`);
+  await shot("other-person-expense");
+  // Delete it (accept the confirm dialog)
+  await send("Runtime.evaluate", { expression: "window.confirm = () => true" });
+  await clickText("Usuń");
+  await waitFor(`location.pathname === "/expenses" && location.search.includes("u=")`, 30000);
+  const gone = await evaluate(`![...document.querySelectorAll("main a")].some((a) => a.getAttribute("href")?.startsWith("/expenses/${theirId}"))`);
+  if (!gone) throw new Error("the deleted expense is still listed");
 
   for (const [index, photo] of RECEIPTS.entries()) {
     step(`scan receipt ${index + 1}`);

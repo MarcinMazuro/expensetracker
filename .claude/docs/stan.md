@@ -17,6 +17,10 @@ Ostatnia aktualizacja: 2026-11-02.
   logowanie Google + lista dostępu, widok „Razem”, awatary lew/puma.
   Klient OAuth i sekret ustawione, Google akceptuje adres powrotu.
 
+- 2026-11-05 (lokalnie): wydatki wspólne po równo + rozliczenie, pozycje
+  przy ręcznych wydatkach, edycja z pozycjami, kategoria Sport, lew i puma
+  w środku aplikacji, pełny dostęp do wydatków drugiej osoby.
+
 ## Czeka
 1. Pierwsze logowanie Marcina i Agnieszki przez Google (konta powstaną same).
 2. Konto GitHub zablokowane przez płatności - Actions nie startują. Do czasu
