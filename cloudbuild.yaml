@@ -5,6 +5,15 @@ substitutions:
   _SERVICE: expensetracker-web
 
 steps:
+  # Avatar photos are not in the public repository (licence) - they come
+  # from a private bucket into public/avatars before the image is built
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: avatars
+    entrypoint: bash
+    args:
+      - -c
+      - mkdir -p public/avatars && gcloud storage cp "gs://$PROJECT_ID-assets/avatars/*" public/avatars/
+
   # Build using the previous image as a layer cache
   - name: gcr.io/cloud-builders/docker
     id: build

@@ -93,6 +93,50 @@ resource "google_cloud_run_v2_service" "web" {
         }
       }
 
+      env {
+        name  = "APP_URL"
+        value = var.app_url
+      }
+
+      # Who may sign in - granting access is a reviewed change here, not a button in the app
+      env {
+        name  = "ALLOWED_EMAILS"
+        value = join(",", var.allowed_emails)
+      }
+
+      env {
+        name  = "ADMIN_EMAILS"
+        value = join(",", var.admin_emails)
+      }
+
+      env {
+        name  = "DEFAULT_AVATARS"
+        value = join(",", [for email, avatar in var.default_avatars : "${email}=${avatar}"])
+      }
+
+      # Google sign-in, only once the OAuth client exists and its secret has a
+      # version - otherwise the new revision would not start
+      dynamic "env" {
+        for_each = var.google_oauth_client_id != "" ? [var.google_oauth_client_id] : []
+        content {
+          name  = "GOOGLE_CLIENT_ID"
+          value = env.value
+        }
+      }
+
+      dynamic "env" {
+        for_each = var.google_oauth_client_id != "" ? ["GOOGLE_CLIENT_SECRET"] : []
+        content {
+          name = env.value
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.google_oauth.secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+
       startup_probe {
         http_get {
           path = "/api/health"
@@ -121,6 +165,7 @@ resource "google_cloud_run_v2_service" "web" {
   depends_on = [
     google_project_service.enabled,
     google_secret_manager_secret_iam_member.app_reads_session,
+    google_secret_manager_secret_iam_member.app_reads_google_oauth,
   ]
 }
 

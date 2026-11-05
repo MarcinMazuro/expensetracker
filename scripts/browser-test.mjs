@@ -3,8 +3,9 @@
  * End-to-end test in real headless Chrome, driven over the DevTools
  * protocol (no extra dependencies - Node 22 has WebSocket built in).
  *
- *   EMAIL=... PASSWORD=... node scripts/browser-test.mjs [base-url] [screenshot-dir] [receipt-photo...]
+ *   [AS=email] node scripts/browser-test.mjs [base-url] [screenshot-dir] [receipt-photo...]
  *
+ * Needs the local preview login (DEV_LOGIN=true, seeded demo accounts).
  * Logs in, adds an expense by hand, scans a receipt photo (when given),
  * then opens every page on a phone and a laptop screen, failing on any
  * JavaScript error or error page. Run against the "development" database.
@@ -18,14 +19,10 @@ const BASE = (process.argv[2] ?? "http://localhost:3002").replace(/\/$/, "");
 const SHOTS = process.argv[3];
 const RECEIPTS = process.argv.slice(4).map((p) => resolve(p));
 const RECEIPT = RECEIPTS[0];
-const { EMAIL, PASSWORD } = process.env;
-if (!EMAIL || !PASSWORD) {
-  console.error("Set EMAIL and PASSWORD of a test account.");
-  process.exit(1);
-}
+const AS = process.env.AS ?? "mazuromarcin@gmail.com";
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
-const PAGES = ["/", "/expenses", "/expenses/new", "/scan", "/reports", "/products", "/categories", "/recurring", "/settings", "/admin"];
+const PAGES = ["/", "/together", "/expenses", "/expenses/new", "/scan", "/reports", "/products", "/categories", "/recurring", "/settings", "/admin"];
 const SCREENS = [
   { name: "phone", width: 390, height: 844, mobile: true, scale: 2 },
   { name: "laptop", width: 1440, height: 900, mobile: false, scale: 1 },
@@ -110,17 +107,18 @@ try {
   await send("DOM.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 
-  step("login page and wrong password");
-  await goto("/login");
-  await fill("input[name=email]", EMAIL);
-  await fill("input[name=password]", "definitely wrong");
-  await click("form button[type=submit]");
-  await waitFor(`document.body.innerText.includes("Nieprawidłowy e-mail lub hasło")`);
+  step("Google sign-in without a configured client explains itself");
+  await goto("/api/auth/google");
+  await waitFor(`location.pathname === "/login" && document.body.innerText.includes("nie jest jeszcze skonfigurowane")`);
+  await shot("login-phone");
 
-  step("login");
-  await fill("input[name=password]", PASSWORD);
-  await click("form button[type=submit]");
+  step(`sign in as ${AS} (local preview login)`);
+  await evaluate(`([...document.querySelectorAll("form[action='/api/auth/dev'] button")].find((b) => b.innerText.includes(${JSON.stringify(AS)})).click(), true)`);
   await waitFor(`location.pathname === "/" && document.body.innerText.includes("Twoje wydatki")`);
+
+  step("shared view");
+  await goto("/together");
+  await waitFor(`document.body.innerText.includes("Wyścig miesiąca") || document.body.innerText.includes("nikt jeszcze")`);
 
   step("add an expense by hand, with AI category suggestion");
   await goto("/expenses/new");

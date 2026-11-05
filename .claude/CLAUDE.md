@@ -19,11 +19,19 @@ Projekt GCP `expensetracker-mm` (nr 183279256871), konto próbne.
 ## Mapa kodu
 Kod, komentarze, testy, Terraform, commity PO ANGIELSKU; UI po polsku.
 - `src/lib/` - czyste funkcje (money, dates, stats, csv, filters, text,
-  validation, recurring-schedule, ai/receipt-schema, token, password) mają
+  validation, recurring-schedule, ai/receipt-schema, token, access,
+  google-oauth, household, products) mają
   testy w `tests/`. Moduły z `import "server-only"` gadają z GCP.
 - Dane per użytkownik pod `users/{uid}/...` - własność wynika ze ścieżki.
   Każda strona i akcja woła `requireUser()` (session.ts); `proxy.ts` to tylko
   szybkie przekierowanie bez ciasteczka.
+- Logowanie tylko Google (`api/auth/google`, `.../callback`, `lib/google-oauth.ts`),
+  lista dostępu `allowed_emails` w Terraformie. Hasła usunięte (2026-11-05).
+  Lokalnie `DEV_LOGIN=true` + baza development = przyciski „zaloguj jako”
+  (`api/auth/dev`, blokada w `devLoginEnabled`). Dane demo: `npm run seed-demo`.
+- Widok „Razem” (`/together`, `lib/household.ts`): wszyscy aktywni użytkownicy
+  to jedno gospodarstwo. Kategorie łączone po nazwie. Kolor i awatar osoby
+  (`user.color`, `user.avatar` lion/puma, `public/avatars`) wszędzie te same.
 - Kwoty zawsze w groszach (int). `amountPln` liczone kursem NBP z dnia wydatku.
 - Akcje w `src/app/actions/`, strony w `src/app/(app)/`.
 - Skaner: `scan/ReceiptScanner.tsx` -> `scanReceipt` -> `lib/ai/gemini.ts`.
@@ -42,7 +50,7 @@ Kod, komentarze, testy, Terraform, commity PO ANGIELSKU; UI po polsku.
 ## Polecenia
 ```bash
 npm run lint && npm test && npm run build
-EMAIL=test@example.com PASSWORD=... node scripts/browser-test.mjs http://localhost:3002 /tmp/shots paragon.jpg
+npm run seed-demo && node scripts/browser-test.mjs http://localhost:3002 /tmp/shots paragon.jpg
 cd terraform && terraform plan   # oczekiwane: No changes
 ```
-Konto testowe w bazie development: test@example.com (hasło w pamięci agenta, nie w repo).
+Konta demo w bazie development: Marcin (lew) i Agnieszka (puma), z seed-demo.

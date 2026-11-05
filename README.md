@@ -11,6 +11,10 @@ GitHub Actions + Cloud Build (Workload Identity Federation, no keys).
 
 ## Features
 
+- **Shared view for a couple** - combined monthly total and each person's
+  share, a "race" of running totals through the month, who spends what per
+  category, a 6-month stacked trend, a merged feed and plain-language
+  insights. Each person has a colour and an avatar used consistently.
 - **Receipt scanning** - photo is scaled down in the browser, stored in a
   private bucket, read by Gemini with a strict JSON schema (the model can only
   answer with your own category IDs), validated again on the server. Discounts
@@ -38,9 +42,11 @@ GitHub Actions + Cloud Build (Workload Identity Federation, no keys).
 - Search across merchants, notes, tags and receipt lines; filters; tags.
 - Installable on a phone (web app manifest with a "scan receipt" shortcut),
   light and dark theme.
-- **Accounts** created only by an admin: scrypt password hashes, signed
-  session cookies revoked on password change, rate-limited login with
-  constant-time checks, per-user data isolated by Firestore path.
+- **Sign in with Google** (OpenID Connect, authorization code + PKCE, nonce,
+  ID token signature verified against Google's keys). Only e-mails on the
+  allowlist in Terraform can sign in; the account is created on the first
+  sign-in. Signed session cookies, revocable from Settings; per-user data
+  isolated by Firestore path.
 
 ## Architecture
 
@@ -65,13 +71,13 @@ cost budget.
 gcloud auth application-default login
 cp .env.example .env.local   # fill SESSION_SECRET with: openssl rand -hex 32
 npm install
-npm run create-user -- --email you@example.com --name You --role admin --database development
-npm run dev
+npm run seed-demo   # two demo people, three months of expenses, in the "development" database
+npm run dev         # DEV_LOGIN=true shows "sign in as..." buttons for the demo accounts
 ```
 
 Checks: `npm run lint && npm test && npm run build`.
 End-to-end in headless Chrome against a running app:
-`EMAIL=... PASSWORD=... node scripts/browser-test.mjs http://localhost:3000 /tmp/shots receipt.jpg`.
+`node scripts/browser-test.mjs http://localhost:3000 /tmp/shots receipt.jpg`.
 
 ## Infrastructure from scratch
 
@@ -83,7 +89,16 @@ cd terraform && terraform init
 terraform apply -target=google_secret_manager_secret_iam_member.app_reads_session   # secret container first
 openssl rand -base64 48 | gcloud secrets versions add session-secret --data-file=-
 terraform apply
-npm run create-user -- --email you@example.com --name You --role admin   # first admin in production
+```
+
+Google sign-in needs an OAuth client, which Google only lets you create in
+the console (Google Auth Platform): branding, audience External (testing
+mode with the allowed accounts as test users is enough), then a Web client
+with the redirect URI `<app_url>/api/auth/google/callback`. Then:
+
+```bash
+printf '%s' '<client secret>' | gcloud secrets versions add google-oauth-client-secret --data-file=-
+terraform apply -var google_oauth_client_id=<client id>   # or set it in terraform.tfvars
 ```
 
 Pushing to `main` runs lint, tests and build, then Cloud Build builds the

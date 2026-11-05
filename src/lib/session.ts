@@ -3,7 +3,8 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getUser } from "./users";
-import { createToken, readToken } from "./token";
+import type { OAuthState } from "./google-oauth";
+import { createSigned, createToken, readSigned, readToken } from "./token";
 import type { User } from "./types";
 
 const COOKIE = "et_session";
@@ -25,6 +26,22 @@ export async function startSession(user: User) {
     path: "/",
     maxAge,
   });
+}
+
+/** Public address of the app - OAuth redirect URIs must match it exactly. */
+export function appUrl(): string {
+  return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+export const OAUTH_COOKIE = "et_oauth";
+
+export function oauthCookieValue(state: OAuthState): string {
+  return createSigned(state, secret());
+}
+
+export function readOAuthCookie(cookieHeader: string | null): OAuthState | null {
+  const match = (cookieHeader ?? "").split(/;\s*/).find((c) => c.startsWith(`${OAUTH_COOKIE}=`));
+  return readSigned<OAuthState>(match?.slice(OAUTH_COOKIE.length + 1), secret());
 }
 
 export async function endSession() {

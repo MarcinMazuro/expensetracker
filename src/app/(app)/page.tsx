@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Avatar } from "@/components/Avatar";
 import { BarChart } from "@/components/charts/BarChart";
+import { ShareBar } from "@/components/charts/Shared";
 import { Donut } from "@/components/charts/Donut";
 import { Progress } from "@/components/charts/Progress";
 import { ExpenseRow } from "@/components/ExpenseRow";
@@ -7,8 +9,10 @@ import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { NavIcon } from "@/components/Navigation";
 import { Card, CardTitle, CategoryDot, ChangeBadge, EmptyState, LinkButton } from "@/components/ui";
 import { categoryMap, listCategories, UNKNOWN_CATEGORY } from "@/lib/categories";
-import { currentMonth, isIsoMonth, monthRange, shiftMonth, today } from "@/lib/dates";
+import { currentMonth, inMonth, isIsoMonth, monthRange, shiftMonth, today } from "@/lib/dates";
 import { listExpenses } from "@/lib/expenses";
+import { personTotals } from "@/lib/household";
+import { loadHousehold } from "@/lib/household-data";
 import { formatMoney } from "@/lib/money";
 import { bookDueRecurring } from "@/lib/recurring";
 import { requireUser } from "@/lib/session";
@@ -22,10 +26,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const now = today();
 
   await bookDueRecurring(user.id);
-  const [categories, expenses] = await Promise.all([
+  const [categories, expenses, members] = await Promise.all([
     listCategories(user.id),
     listExpenses(user.id, monthRange(previousMonth).from, monthRange(month).to),
+    loadHousehold(monthRange(month).from, monthRange(month).to),
   ]);
+  members.sort((a, b) => (a.user.id === user.id ? -1 : b.user.id === user.id ? 1 : 0));
+  const household = personTotals(members, month, now);
   const categoriesById = categoryMap(categories);
   const category = (id: string) => categoriesById.get(id) ?? UNKNOWN_CATEGORY;
 
@@ -56,6 +63,19 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <LinkButton href="/expenses/new" className="lg:hidden">+ Dodaj</LinkButton>
         </div>
       </header>
+
+      {household.length > 1 && (
+        <Link href={`/together?month=${month}`}
+          className="group mb-3 flex items-center gap-4 rounded-2xl border border-line bg-surface px-5 py-3.5 transition hover:border-accent">
+          <span className="flex -space-x-2">{household.map((p) => <Avatar key={p.user.id} user={p.user} size={34} ring />)}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-fg-muted">Razem {inMonth(month)}</span>
+            <span className="block font-semibold tabular">{formatMoney(household.reduce((s, p) => s + p.total, 0))}</span>
+          </span>
+          <span className="hidden w-48 sm:block"><ShareBar people={household} /></span>
+          <span className="text-fg-muted transition group-hover:translate-x-0.5 group-hover:text-accent">→</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card className="col-span-2 lg:col-span-1">

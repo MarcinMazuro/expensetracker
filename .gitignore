@@ -53,3 +53,8 @@ terraform/**/crash.log
 /*.pdf
 
 !.env.example
+
+# Avatar photos - licence unclear, kept out of the public repo; uploaded to
+# gs://expensetracker-mm-assets/avatars and copied in by Cloud Build
+/images/
+/public/avatars/

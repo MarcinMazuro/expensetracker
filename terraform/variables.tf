@@ -45,3 +45,36 @@ variable "monthly_budget_pln" {
   type        = number
   default     = 30
 }
+
+variable "app_url" {
+  description = "Public address of the app - must match the OAuth redirect URI registered with Google"
+  type        = string
+  default     = "https://expensetracker-web-btybm7xf3a-ew.a.run.app"
+}
+
+variable "allowed_emails" {
+  description = "Google accounts that may sign in; an account is created on the first sign-in"
+  type        = list(string)
+  default     = ["mazuromarcin@gmail.com", "agnieszkabielawa03@gmail.com"]
+}
+
+variable "admin_emails" {
+  description = "Accounts that get the admin role on first sign-in"
+  type        = list(string)
+  default     = ["mazuromarcin@gmail.com"]
+}
+
+variable "default_avatars" {
+  description = "Avatar given to an account on first sign-in (lion, puma); changeable in Settings"
+  type        = map(string)
+  default = {
+    "mazuromarcin@gmail.com"       = "lion"
+    "agnieszkabielawa03@gmail.com" = "puma"
+  }
+}
+
+variable "google_oauth_client_id" {
+  description = "OAuth web client ID from Google Auth Platform (not a secret). Empty = Google sign-in off"
+  type        = string
+  default     = "183279256871-ubfcid5i487m1t4elp5flmlk8de35bbr.apps.googleusercontent.com"
+}

@@ -8,13 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "create-user": "node scripts/create-user.mjs"
+    "seed-demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.4.0",
     "@google-cloud/storage": "^8.4.0",
     "@google/genai": "^2.32.0",
     "clsx": "^2.1.1",
+    "google-auth-library": "^11.3.3",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",

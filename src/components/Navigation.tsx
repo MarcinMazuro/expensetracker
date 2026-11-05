@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions/auth";
+import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/cn";
+import type { User } from "@/lib/types";
 
 const ICONS = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z",
@@ -15,6 +17,7 @@ const ICONS = {
   settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
   users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
   plus: "M12 5v14M5 12h14",
+  heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z",
   basket: "M5 10h14l-1.5 9a2 2 0 0 1-2 1.7h-7a2 2 0 0 1-2-1.7zM9 10l3-6 3 6M9.5 14v3M14.5 14v3",
 };
 
@@ -31,6 +34,7 @@ export function NavIcon({ name, className }: { name: Icon; className?: string })
 
 const MAIN: { href: string; label: string; icon: Icon }[] = [
   { href: "/", label: "Pulpit", icon: "home" },
+  { href: "/together", label: "Razem", icon: "heart" },
   { href: "/expenses", label: "Wydatki", icon: "list" },
   { href: "/scan", label: "Skanuj paragon", icon: "scan" },
   { href: "/reports", label: "Raporty", icon: "chart" },
@@ -42,9 +46,9 @@ const MAIN: { href: string; label: string; icon: Icon }[] = [
 
 const MOBILE: { href: string; label: string; icon: Icon }[] = [
   { href: "/", label: "Pulpit", icon: "home" },
-  { href: "/expenses", label: "Wydatki", icon: "list" },
+  { href: "/together", label: "Razem", icon: "heart" },
   { href: "/scan", label: "Skanuj", icon: "scan" },
-  { href: "/reports", label: "Raporty", icon: "chart" },
+  { href: "/expenses", label: "Wydatki", icon: "list" },
   { href: "/settings", label: "Więcej", icon: "settings" },
 ];
 
@@ -52,9 +56,9 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Navigation({ name, isAdmin }: { name: string; isAdmin: boolean }) {
+export function Navigation({ user, isAdmin }: { user: Pick<User, "name" | "color" | "picture" | "avatar">; isAdmin: boolean }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...MAIN, { href: "/admin", label: "Użytkownicy", icon: "users" as Icon }] : MAIN;
+  const items = isAdmin ? [...MAIN, { href: "/admin", label: "Dostęp", icon: "users" as Icon }] : MAIN;
 
   return (
     <>
@@ -81,16 +85,21 @@ export function Navigation({ name, isAdmin }: { name: string; isAdmin: boolean }
           ))}
         </nav>
         <div className="border-t border-line pt-4">
-          <p className="truncate px-3 text-sm font-medium">{name}</p>
-          <form action={logout}>
-            <button className="mt-1 px-3 text-sm text-fg-muted hover:text-fg">Wyloguj</button>
-          </form>
+          <div className="flex items-center gap-3 px-2">
+            <Avatar user={user} size={36} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user.name}</p>
+              <form action={logout}>
+                <button className="text-xs text-fg-muted hover:text-fg">Wyloguj</button>
+              </form>
+            </div>
+          </div>
         </div>
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         {MOBILE.map((item) => {
-          const active = isActive(pathname, item.href) || (item.href === "/settings" && ["/products", "/categories", "/recurring", "/admin"].some((p) => pathname.startsWith(p)));
+          const active = isActive(pathname, item.href) || (item.href === "/settings" && ["/reports", "/products", "/categories", "/recurring", "/admin"].some((p) => pathname.startsWith(p)));
           if (item.href === "/scan") {
             return (
               <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center py-1.5" aria-label={item.label}>

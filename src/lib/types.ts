@@ -12,6 +12,13 @@ export interface User {
   /** Bumped on password change - invalidates every older session cookie. */
   sessionVersion: number;
   createdAt: string;
+  /** Colour of this person in shared views. */
+  color: string;
+  /** Google profile photo URL. */
+  picture?: string;
+  /** Chosen avatar (see AVATARS), shown instead of the Google photo. */
+  avatar?: string;
+  lastLoginAt?: string;
 }
 
 export interface Category {

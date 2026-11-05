@@ -1,12 +1,10 @@
 import "server-only";
+import { PERSON_COLORS } from "./access";
 import { DEFAULT_CATEGORIES } from "./default-categories";
 import { COLLECTIONS, db, userCollection, userDoc } from "./firestore";
-import { hashPassword } from "./password";
 import type { Role, User } from "./types";
 
-interface UserRecord extends Omit<User, "id"> {
-  passwordHash: string;
-}
+type UserRecord = Omit<User, "id">;
 
 function toUser(id: string, data: UserRecord): User {
   return {
@@ -17,6 +15,10 @@ function toUser(id: string, data: UserRecord): User {
     disabled: data.disabled,
     sessionVersion: data.sessionVersion,
     createdAt: data.createdAt,
+    color: data.color ?? PERSON_COLORS[0],
+    ...(data.picture && { picture: data.picture }),
+    ...(data.avatar && { avatar: data.avatar }),
+    ...(data.lastLoginAt && { lastLoginAt: data.lastLoginAt }),
   };
 }
 
@@ -29,13 +31,10 @@ export async function getUser(uid: string): Promise<User | null> {
   return doc.exists ? toUser(doc.id, doc.data() as UserRecord) : null;
 }
 
-/** User plus password hash - only for the login check. */
-export async function findForLogin(email: string): Promise<(User & { passwordHash: string }) | null> {
+export async function findByEmail(email: string): Promise<User | null> {
   const snapshot = await db().collection(COLLECTIONS.users).where("email", "==", normalizeEmail(email)).limit(1).get();
   const doc = snapshot.docs[0];
-  if (!doc) return null;
-  const data = doc.data() as UserRecord;
-  return { ...toUser(doc.id, data), passwordHash: data.passwordHash };
+  return doc ? toUser(doc.id, doc.data() as UserRecord) : null;
 }
 
 export async function listUsers(): Promise<User[]> {
@@ -44,9 +43,10 @@ export async function listUsers(): Promise<User[]> {
 }
 
 /** Creates the account and seeds default categories in one batch. */
-export async function createUser(input: { email: string; name: string; password: string; role: Role }): Promise<User> {
+export async function createUser(input: { email: string; name: string; role: Role; picture?: string; avatar?: string }): Promise<User> {
   const email = normalizeEmail(input.email);
-  if (await findForLogin(email)) throw new Error("Konto z tym adresem już istnieje.");
+  const existing = await listUsers();
+  if (existing.some((u) => u.email === email)) throw new Error(`Account ${email} already exists`);
 
   const ref = db().collection(COLLECTIONS.users).doc();
   const record: UserRecord = {
@@ -56,7 +56,10 @@ export async function createUser(input: { email: string; name: string; password:
     disabled: false,
     sessionVersion: 1,
     createdAt: new Date().toISOString(),
-    passwordHash: await hashPassword(input.password),
+    // Next free colour, so two people never share one in the shared view
+    color: PERSON_COLORS.find((c) => !existing.some((u) => u.color === c)) ?? PERSON_COLORS[existing.length % PERSON_COLORS.length],
+    ...(input.picture && { picture: input.picture }),
+    ...(input.avatar && { avatar: input.avatar }),
   };
 
   const batch = db().batch();
@@ -68,18 +71,16 @@ export async function createUser(input: { email: string; name: string; password:
   return toUser(ref.id, record);
 }
 
-/** New password and a new session version - every other device is signed out. */
-export async function setPassword(uid: string, password: string): Promise<number> {
-  const passwordHash = await hashPassword(password);
-  return db().runTransaction(async (tx) => {
+/** Signs the user out of every device - every older session cookie stops matching. */
+export async function revokeSessions(uid: string): Promise<User | null> {
+  await db().runTransaction(async (tx) => {
     const ref = userDoc(uid);
     const doc = await tx.get(ref);
-    const sessionVersion = ((doc.data()?.sessionVersion as number) ?? 0) + 1;
-    tx.update(ref, { passwordHash, sessionVersion });
-    return sessionVersion;
+    tx.update(ref, { sessionVersion: ((doc.data()?.sessionVersion as number) ?? 0) + 1 });
   });
+  return getUser(uid);
 }
 
-export async function updateUser(uid: string, fields: Partial<Pick<User, "name" | "role" | "disabled">>) {
+export async function updateUser(uid: string, fields: Partial<Pick<User, "name" | "role" | "disabled" | "picture" | "lastLoginAt" | "avatar">>) {
   await userDoc(uid).update(fields);
 }

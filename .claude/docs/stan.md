@@ -13,7 +13,10 @@ Ostatnia aktualizacja: 2026-11-02.
   najtańszy sklep. Ręczne wydatki nie mają pozycji, więc ich tu nie ma.
 - 77 testów jednostkowych + test e2e w Chrome (przechodzi lokalnie).
 
+- 2026-11-05 (lokalnie, niewdrożone): logowanie Google + lista dostępu,
+  widok „Razem”, awatary lew/puma, dane demo.
+
 ## Czeka
-1. Pierwszy admin w produkcji: `npm run create-user -- --email ... --role admin`
-   (hasło wpisuje Marcin).
+1. Klient OAuth w konsoli, sekret, `terraform apply -var google_oauth_client_id=...`
+   (po zielonym CI), pierwsze logowanie obojga.
 2. Opcjonalnie: domena, PWA offline, wspólne budżety/gospodarstwa domowe.

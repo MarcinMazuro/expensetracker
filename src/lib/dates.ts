@@ -89,3 +89,11 @@ export function formatDay(date: string): string {
 export function formatDayShort(date: string): string {
   return dayShort.format(new Date(`${date}T00:00:00Z`));
 }
+
+const LOCATIVE = ["styczniu", "lutym", "marcu", "kwietniu", "maju", "czerwcu", "lipcu", "sierpniu", "wrześniu", "październiku", "listopadzie", "grudniu"];
+
+/** "2026-11" -> "w listopadzie" (with the year when it is not the current one) */
+export function inMonth(month: string, now = new Date()): string {
+  const name = LOCATIVE[Number(month.slice(5, 7)) - 1];
+  return month.slice(0, 4) === today(now).slice(0, 4) ? `w ${name}` : `w ${name} ${month.slice(0, 4)}`;
+}
