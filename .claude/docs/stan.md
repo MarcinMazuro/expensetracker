@@ -13,10 +13,12 @@ Ostatnia aktualizacja: 2026-11-02.
   najtańszy sklep. Ręczne wydatki nie mają pozycji, więc ich tu nie ma.
 - 77 testów jednostkowych + test e2e w Chrome (przechodzi lokalnie).
 
-- 2026-11-05 (lokalnie, niewdrożone): logowanie Google + lista dostępu,
-  widok „Razem”, awatary lew/puma, dane demo.
+- 2026-11-05 na produkcji (`f96ccdf`, wdrożone ręcznie przez Cloud Build):
+  logowanie Google + lista dostępu, widok „Razem”, awatary lew/puma.
+  Klient OAuth i sekret ustawione, Google akceptuje adres powrotu.
 
 ## Czeka
-1. Klient OAuth w konsoli, sekret, `terraform apply -var google_oauth_client_id=...`
-   (po zielonym CI), pierwsze logowanie obojga.
+1. Pierwsze logowanie Marcina i Agnieszki przez Google (konta powstaną same).
+2. Konto GitHub zablokowane przez płatności - Actions nie startują. Do czasu
+   naprawy wdrożenie ręcznie (patrz pułapka 12).
 2. Opcjonalnie: domena, PWA offline, wspólne budżety/gospodarstwa domowe.

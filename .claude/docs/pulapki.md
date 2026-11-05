@@ -21,3 +21,7 @@
     publiczne - są w `.gitignore`. Źródło prawdy: `gs://expensetracker-mm-assets/avatars`
     (Cloud Build kopiuje je do `public/avatars` przed buildem). Po zmianie
     awatara lokalnie: `gcloud storage cp public/avatars/*.webp gs://expensetracker-mm-assets/avatars/`.
+12. **GitHub Actions: „account is locked due to a billing issue”** (2026-11-05) -
+    job nie startuje, to nie błąd kodu. Wdrożenie ręczne z czystego drzewa:
+    `gcloud builds submit --config cloudbuild.yaml --project expensetracker-mm --region europe-west1 --substitutions SHORT_SHA=$(git rev-parse --short HEAD) --service-account projects/expensetracker-mm/serviceAccounts/183279256871-compute@developer.gserviceaccount.com`
+    (gcloud respektuje .gitignore - `.env.local` nie jest wysyłany; sprawdzić `gcloud meta list-files-for-upload .`).
