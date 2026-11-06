@@ -2,7 +2,10 @@ import "server-only";
 import { today } from "./dates";
 import { createExpense } from "./expenses";
 import { userCollection } from "./firestore";
-import { dueDates } from "./recurring-schedule";
+import { rateToPln } from "./fx";
+import { convert } from "./money";
+import { chargesInMonth, dueDates } from "./recurring-schedule";
+import type { UpcomingCharge } from "./stats";
 import type { RecurringExpense } from "./types";
 
 export async function listRecurring(uid: string): Promise<RecurringExpense[]> {
@@ -49,4 +52,25 @@ export async function bookDueRecurring(uid: string): Promise<number> {
     await doc.ref.update({ nextDate: next });
   }
   return booked;
+}
+
+/** Active recurring charges of this month that are not booked yet, in PLN - for the forecasts. */
+export async function upcomingCharges(uid: string, month: string): Promise<UpcomingCharge[]> {
+  const rules = (await listRecurring(uid)).filter((r) => r.active);
+  const charges = await Promise.all(
+    rules.map(async (rule) => {
+      const count = chargesInMonth(rule.nextDate, rule.interval, rule.anchorDay, month);
+      if (count === 0) return [];
+      try {
+        // Today's rate is close enough for a forecast of a foreign-currency charge
+        const rate = await rateToPln(rule.currency, today());
+        return Array.from({ length: count }, () => ({ categoryId: rule.categoryId, amountPln: convert(rule.amount, rate) }));
+      } catch (error) {
+        // A forecast missing one charge is better than a dashboard that does not load
+        console.error(`No exchange rate for recurring charge ${rule.id}:`, error);
+        return [];
+      }
+    }),
+  );
+  return charges.flat();
 }

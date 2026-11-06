@@ -15,7 +15,7 @@ import { listExpenses } from "@/lib/expenses";
 import { personTotals } from "@/lib/household";
 import { loadHousehold } from "@/lib/household-data";
 import { formatMoney } from "@/lib/money";
-import { bookDueRecurring } from "@/lib/recurring";
+import { bookDueRecurring, upcomingCharges } from "@/lib/recurring";
 import { requireUser } from "@/lib/session";
 import { plural } from "@/lib/text";
 import { budgets, byCategory, change, dailySeries, pace, topMerchants, total } from "@/lib/stats";
@@ -28,10 +28,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const now = today();
 
   await bookDueRecurring(user.id);
-  const [categories, expenses, members] = await Promise.all([
+  const [categories, expenses, members, upcoming] = await Promise.all([
     listCategories(user.id),
     listExpenses(user.id, monthRange(previousMonth).from, monthRange(month).to),
     loadHousehold(monthRange(month).from, monthRange(month).to),
+    upcomingCharges(user.id, month),
   ]);
   members.sort((a, b) => (a.user.id === user.id ? -1 : b.user.id === user.id ? 1 : 0));
   const household = personTotals(members, month, now);
@@ -40,11 +41,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
   const thisMonth = expenses.filter((e) => e.date.startsWith(month));
   const lastMonth = expenses.filter((e) => e.date.startsWith(previousMonth));
-  const stats = pace(thisMonth, month, now);
+  const stats = pace(thisMonth, month, now, upcoming);
   // Compare like with like: the 1st-15th of this month against the 1st-15th of the last one
   const sameDayLastMonth = `${previousMonth}-${String(stats.elapsedDays).padStart(2, "0")}`;
   const lastMonthToDate = total(lastMonth.filter((e) => e.date <= sameDayLastMonth));
-  const budgetList = budgets(categories, thisMonth, month, now);
+  const budgetList = budgets(categories, thisMonth, month, now, upcoming);
   const budgetTotal = categories.reduce((s, c) => s + c.budget, 0);
   const shares = byCategory(thisMonth);
   const daily = dailySeries(thisMonth, month);
@@ -118,7 +119,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <p className="text-sm text-fg-muted">{isCurrentMonth ? "Prognoza na koniec" : "Poprzedni miesiąc"}</p>
           <p className="mt-1 text-xl font-semibold tabular">{formatMoney(isCurrentMonth ? stats.projected : total(lastMonth))}</p>
           <p className="mt-2 text-xs text-fg-muted">
-            {isCurrentMonth ? `po ${stats.elapsedDays} z ${stats.days} dni` : plural(lastMonth.length, "wydatek", "wydatki", "wydatków")}
+            {isCurrentMonth ? (stats.fixed > 0 ? `w tym cykliczne ${formatMoney(stats.fixed)}` : `po ${stats.elapsedDays} z ${stats.days} dni`) : plural(lastMonth.length, "wydatek", "wydatki", "wydatków")}
           </p>
         </Card>
         <Card className="col-span-2 lg:col-span-1">

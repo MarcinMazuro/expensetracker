@@ -1,4 +1,4 @@
-import { addDays, addMonths } from "./dates";
+import { addDays, addMonths, monthRange } from "./dates";
 import type { Interval } from "./types";
 
 /** The charge date after `date`. */
@@ -34,6 +34,11 @@ export function dueDates(
     cursor = nextOccurrence(cursor, interval, anchorDay);
   }
   return { due, next: cursor };
+}
+
+/** How many charges not booked yet fall in the given month. */
+export function chargesInMonth(nextDate: string, interval: Interval, anchorDay: number, month: string): number {
+  return dueDates(nextDate, interval, anchorDay, monthRange(month).to, 1000).due.filter((d) => d.startsWith(month)).length;
 }
 
 /** Rough monthly cost, for the "subscriptions cost you X a month" summary. */

@@ -9,9 +9,9 @@ import { currentMonth, daysInMonth, formatDayShort, formatMonth, inMonth, isIsoM
 import { compareCategories, cumulativeByPerson, insights, monthlyByPerson, personTotals, settlement, sharedFeed } from "@/lib/household";
 import { loadHousehold } from "@/lib/household-data";
 import { formatMoney } from "@/lib/money";
-import { bookDueRecurring } from "@/lib/recurring";
+import { bookDueRecurring, upcomingCharges } from "@/lib/recurring";
 import { requireUser } from "@/lib/session";
-import { change } from "@/lib/stats";
+import { change, pace } from "@/lib/stats";
 import { plural } from "@/lib/text";
 
 export const metadata: Metadata = { title: "Razem" };
@@ -37,7 +37,9 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
   const notes = insights(members, month, now);
   const settled = settlement(members, month);
   const isCurrent = month === currentMonth();
-  const elapsed = isCurrent ? Number(now.slice(8, 10)) : daysInMonth(month);
+  // Each person's forecast, recurring charges counted once rather than extrapolated
+  const upcoming = await Promise.all(members.map((m) => upcomingCharges(m.user.id, month)));
+  const dailyAverage = members.reduce((sum, m, i) => sum + pace(m.expenses, month, now, upcoming[i]).dailyAverage, 0);
 
   return (
     <>
@@ -73,7 +75,7 @@ export default async function TogetherPage({ searchParams }: PageProps<"/togethe
             <ChangeBadge value={change(combined, previous)} label={isCurrent ? "vs ten sam okres m-c temu" : `vs ${formatMonth(shiftMonth(month, -1))}`} />
           </div>
           <p className="mt-1 text-sm text-fg-muted tabular">
-            średnio {formatMoney(elapsed ? Math.round(combined / elapsed) : 0)} dziennie na was dwoje
+            średnio {formatMoney(dailyAverage)} dziennie na was dwoje
           </p>
 
           <div className="mt-6"><ShareBar people={people} /></div>

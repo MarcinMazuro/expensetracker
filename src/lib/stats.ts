@@ -77,28 +77,50 @@ export function topMerchants(expenses: Expense[], limit = 5): { merchant: string
   return [...map.values()].sort((a, b) => b.total - a.total).slice(0, limit);
 }
 
+/** A recurring charge still to come this month, not booked as an expense yet. */
+export interface UpcomingCharge {
+  categoryId: string;
+  amountPln: number;
+}
+
 export interface Pace {
   spent: number;
   /** Days of the month that have passed, including today. */
   elapsedDays: number;
   days: number;
+  /** The expected month-end total spread over every day of the month. */
   dailyAverage: number;
-  /** Linear projection of the month-end total. */
+  /** Expected month-end total. */
   projected: number;
+  /** Recurring charges of this month, booked and still to come. */
+  fixed: number;
 }
 
 /**
- * How fast the month is going. For a past month the projection equals the
- * total, for a future month there is nothing to project.
+ * Month-end total: everyday spending continues at its current pace, while
+ * recurring charges count once at their real amount - 1300 zł of rent on the
+ * 6th must not be extrapolated as if it were paid every six days.
  */
-export function pace(expenses: Expense[], month: string, today: string): Pace {
+function projectMonth(everyday: number, fixed: number, elapsedDays: number, days: number): number {
+  return (elapsedDays ? Math.round((everyday / elapsedDays) * days) : everyday) + fixed;
+}
+
+const isRecurring = (e: Expense) => e.source === "recurring";
+
+/**
+ * How fast the month is going. For a past month the projection equals the
+ * total, for a future month it is what is already known to come.
+ */
+export function pace(expenses: Expense[], month: string, today: string, upcoming: UpcomingCharge[] = []): Pace {
   const days = daysInMonth(month);
-  const spent = total(expenses.filter((e) => e.date.startsWith(month)));
+  const inMonth = expenses.filter((e) => e.date.startsWith(month));
+  const spent = total(inMonth);
   const currentMonth = today.slice(0, 7);
   const elapsedDays = month < currentMonth ? days : month > currentMonth ? 0 : Number(today.slice(8, 10));
-  const dailyAverage = elapsedDays ? Math.round(spent / elapsedDays) : 0;
-  const projected = elapsedDays ? Math.round((spent / elapsedDays) * days) : spent;
-  return { spent, elapsedDays, days, dailyAverage, projected };
+  const booked = total(inMonth.filter(isRecurring));
+  const fixed = booked + upcoming.reduce((s, c) => s + c.amountPln, 0);
+  const projected = projectMonth(spent - booked, fixed, elapsedDays, days);
+  return { spent, elapsedDays, days, dailyAverage: elapsedDays ? Math.round(projected / days) : 0, projected, fixed };
 }
 
 export type BudgetState = "ok" | "warning" | "over";
@@ -114,16 +136,19 @@ export interface BudgetStatus {
 }
 
 /** Budget usage for categories that have a budget, most used first. */
-export function budgets(categories: Category[], expenses: Expense[], month: string, today: string): BudgetStatus[] {
-  const totals = new Map(byCategory(expenses.filter((e) => e.date.startsWith(month))).map((c) => [c.categoryId, c.total]));
+export function budgets(categories: Category[], expenses: Expense[], month: string, today: string, upcoming: UpcomingCharge[] = []): BudgetStatus[] {
+  const inMonth = expenses.filter((e) => e.date.startsWith(month));
   const { elapsedDays, days } = pace(expenses, month, today);
 
   return categories
     .filter((c) => c.budget > 0)
     .map((category) => {
-      const spent = totals.get(category.id) ?? 0;
+      const own = inMonth.filter((e) => e.categoryId === category.id);
+      const spent = total(own);
+      const booked = total(own.filter(isRecurring));
+      const coming = upcoming.filter((c) => c.categoryId === category.id).reduce((s, c) => s + c.amountPln, 0);
       const ratio = spent / category.budget;
-      const projected = elapsedDays ? Math.round((spent / elapsedDays) * days) : spent;
+      const projected = projectMonth(spent - booked, booked + coming, elapsedDays, days);
       const state: BudgetState = ratio >= 1 ? "over" : ratio >= 0.8 || projected > category.budget ? "warning" : "ok";
       return { category, spent, budget: category.budget, ratio, state, projected };
     })

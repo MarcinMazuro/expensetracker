@@ -43,6 +43,9 @@ Kod, komentarze, testy, Terraform, commity PO ANGIELSKU; UI po polsku.
   z formularza. `updatedBy` pokazuje, kto zmienił cudzy wydatek.
 - Pozycje wpisywane ręcznie: `parseItemsJson`, produkt/grupa z pamięci
   produktów albo `classifyItems` (Gemini) w `completeItems`.
+- Prognozy (`pace`, `budgets` w `lib/stats.ts`): tempo liczone tylko z wydatków
+  bieżących, cykliczne (`source: "recurring"`) wchodzą raz, razem z jeszcze
+  niezaksięgowanymi (`upcomingCharges`). Średnia dzienna = prognoza / dni miesiąca.
 - Kwoty zawsze w groszach (int). `amountPln` liczone kursem NBP z dnia wydatku.
 - Akcje w `src/app/actions/`, strony w `src/app/(app)/`.
 - Skaner: `scan/ReceiptScanner.tsx` -> `scanReceipt` -> `lib/ai/gemini.ts`.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dueDates, monthlyEquivalent, nextOccurrence } from "@/lib/recurring-schedule";
+import { chargesInMonth, dueDates, monthlyEquivalent, nextOccurrence } from "@/lib/recurring-schedule";
 
 describe("recurring schedule", () => {
   it("books every missed charge and returns the next future one", () => {
@@ -24,6 +24,13 @@ describe("recurring schedule", () => {
   it("follows the anchor day of month-end subscriptions", () => {
     expect(nextOccurrence("2026-02-28", "monthly", 31)).toBe("2026-03-31");
     expect(nextOccurrence("2026-11-30", "quarterly", 30)).toBe("2027-02-28");
+  });
+
+  it("counts charges not booked yet in a month", () => {
+    expect(chargesInMonth("2026-11-20", "monthly", 20, "2026-11")).toBe(1);
+    expect(chargesInMonth("2026-12-06", "monthly", 6, "2026-11")).toBe(0);
+    expect(chargesInMonth("2026-11-09", "weekly", 9, "2026-11")).toBe(4);
+    expect(chargesInMonth("2026-11-06", "monthly", 6, "2027-01")).toBe(1);
   });
 
   it("estimates the monthly cost", () => {
