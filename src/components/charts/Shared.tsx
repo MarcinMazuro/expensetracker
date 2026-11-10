@@ -116,8 +116,8 @@ export function StackedMonths({ months, users, active, height = 180 }: {
     <div>
       <div className="flex items-end gap-2 sm:gap-3" style={{ height }}>
         {months.map((m) => (
-          <div key={m.month} className="flex h-full flex-1 flex-col justify-end" title={`${formatMonth(m.month)}: ${formatMoney(m.total)}\n${users.map((u) => `${u.name}: ${formatMoney(m.amounts[u.id] ?? 0)}`).join("\n")}`}>
-            <span className={`mb-1 text-center text-[10px] tabular ${m.month === active ? "font-medium text-fg" : "text-fg-muted"}`}>
+          <div key={m.month} className="flex h-full min-w-0 flex-1 basis-0 flex-col justify-end" title={`${formatMonth(m.month)}: ${formatMoney(m.total)}\n${users.map((u) => `${u.name}: ${formatMoney(m.amounts[u.id] ?? 0)}`).join("\n")}`}>
+            <span className={`mb-1 text-center text-[10px] whitespace-nowrap tabular ${m.month === active ? "font-medium text-fg" : "text-fg-muted"}`}>
               {m.total ? formatMoneyShort(m.total).replace(/\s?zł/, "") : ""}
             </span>
             <div className={`grow-y flex flex-col-reverse overflow-hidden rounded-xl ${m.month === active ? "" : "opacity-60"}`} style={{ height: `${(m.total / max) * 85}%`, ["--i" as string]: months.indexOf(m) * 4 }}>
@@ -130,7 +130,7 @@ export function StackedMonths({ months, users, active, height = 180 }: {
       </div>
       <div className="mt-2 flex gap-2 sm:gap-3">
         {months.map((m) => (
-          <span key={m.month} className={`flex-1 text-center text-[11px] capitalize ${m.month === active ? "font-medium" : "text-fg-muted"}`}>{formatMonthShort(m.month)}</span>
+          <span key={m.month} className={`min-w-0 flex-1 basis-0 truncate text-center text-[11px] capitalize ${m.month === active ? "font-medium" : "text-fg-muted"}`}>{formatMonthShort(m.month)}</span>
         ))}
       </div>
     </div>

@@ -17,8 +17,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <Navigation user={user} isAdmin={user.role === "admin"} people={people} />
-      <div className="lg:pl-64">
-        <main className="mx-auto max-w-6xl px-4 pt-4 pb-32 sm:px-6 lg:pt-10 lg:pb-12">
+      <div className="overflow-x-clip lg:pl-64">
+        <main className="mx-auto max-w-6xl min-w-0 px-4 pt-4 pb-32 sm:px-6 lg:pt-10 lg:pb-12">
           <ViewTransition>{children}</ViewTransition>
         </main>
       </div>

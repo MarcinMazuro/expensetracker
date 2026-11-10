@@ -3,7 +3,7 @@ import { Animal } from "@/components/Animal";
 import { cn } from "@/lib/cn";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cn("rounded-3xl border border-line/80 bg-surface p-5 shadow-card", className)}>{children}</section>;
+  return <section className={cn("min-w-0 rounded-3xl border border-line/80 bg-surface p-5 shadow-card", className)}>{children}</section>;
 }
 
 export function CardTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
