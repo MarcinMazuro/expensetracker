@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BarChart } from "@/components/charts/BarChart";
 import { Card, CardTitle } from "@/components/ui";
 import { currentMonth, formatDayShort, formatMonth, formatMonthShort, isIsoMonth, monthRange, monthsBack } from "@/lib/dates";
-import { listExpenses } from "@/lib/expenses";
+import { listVisibleExpenses } from "@/lib/expenses";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity, PRODUCT_GROUPS } from "@/lib/product-groups";
 import { aggregateProducts, priceByMerchant, productHistory, productLines } from "@/lib/products";
@@ -22,7 +22,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const month = isIsoMonth(monthParam) ? monthParam : currentMonth();
   const months = monthsBack(month, 12);
 
-  const expenses = await listExpenses(owner.id, monthRange(months[0]).from, monthRange(month).to);
+  const expenses = await listVisibleExpenses(user.id, owner.id, monthRange(months[0]).from, monthRange(month).to);
   const lines = productLines(expenses).filter((l) => l.key === decodeURIComponent(key));
   if (lines.length === 0) notFound();
 

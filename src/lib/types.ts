@@ -45,16 +45,28 @@ export interface ReceiptItem {
   group?: ProductGroup;
   /** Category the line was assigned on the receipt. */
   categoryId?: string;
+  /** In a shared expense: "split" (the default) or the id of the one person the line belongs to. */
+  assign?: string;
+  /** Hidden from the other person until revealed; their view of the expense leaves the line and its price out. */
+  hidden?: boolean;
 }
 
 export interface SharedInfo {
-  /** The whole amount before splitting, in the expense currency. */
+  /** The whole amount before dividing, in the expense currency - as far as this copy's owner may see it. */
   total: number;
-  /** User ids, in a fixed order - the order decides who gets the odd grosz. */
+  /** User ids, in a fixed order. */
   participants: string[];
   paidBy: string;
-  /** The receipt lines before splitting, for editing the whole expense. */
+  /** The account whose copy keeps the full version (every line, hidden ones included). Older copies: the payer. */
+  home?: string;
+  /** Percent of the split lines per participant; missing means equal parts. */
+  weights?: Record<string, number>;
+  /** Every line before dividing - only on the home copy. */
   items?: ReceiptItem[];
+  /** The debt was paid back. */
+  settled?: boolean;
+  settledAt?: string;
+  settledBy?: string;
 }
 
 export interface Expense {
@@ -80,6 +92,12 @@ export interface Expense {
   shared?: SharedInfo;
   createdAt: string;
   updatedAt: string;
+  /** On a copy whose owner still owes the payer their part - what the "to pay back" list is built from. */
+  unsettled?: boolean;
+  /** Hidden from the other person until revealed; see lib/visibility.ts. */
+  hidden?: boolean;
+  /** Moment of the automatic reveal; without it, only the owner's click reveals. */
+  hiddenUntil?: string;
   /** Who last changed it - shown when it was the other person. */
   updatedBy?: string;
 }

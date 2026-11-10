@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Animal } from "@/components/Animal";
 import { Avatar } from "@/components/Avatar";
 import { GoogleButton } from "@/components/GoogleButton";
 import { Alert } from "@/components/ui";
-import { AVATARS, devLoginEnabled } from "@/lib/access";
+import { devLoginEnabled } from "@/lib/access";
 import { currentUser } from "@/lib/session";
 import { listUsers } from "@/lib/users";
 
@@ -28,22 +29,18 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       {/* Soft colour wash behind the card */}
       <div aria-hidden className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-accent/15 blur-3xl" />
       {/* Lion and puma flank the card on wide screens */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={AVATARS.lion.full} alt="" aria-hidden className="pointer-events-none absolute bottom-0 left-[max(1rem,calc(50%-34rem))] hidden h-[26rem] drop-shadow-2xl lg:block" />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={AVATARS.puma.full} alt="" aria-hidden className="pointer-events-none absolute right-[max(1rem,calc(50%-30rem))] bottom-0 hidden h-[22rem] drop-shadow-2xl lg:block" />
+      <Animal species="lion" pose="stand" className="absolute bottom-0 left-[max(1rem,calc(50%-34rem))] hidden h-[26rem] w-[22rem] animate-[walk-in-left_0.9s_cubic-bezier(0.2,0.9,0.25,1)_both] lg:inline-block" />
+      <Animal species="puma" pose="stand" className="absolute right-[max(1rem,calc(50%-30rem))] bottom-0 hidden h-[22rem] w-[20rem] animate-walk-in lg:inline-block" />
       <div className="relative w-full max-w-sm">
         <div className="mb-8 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.svg" alt="" className="mx-auto mb-5 hidden size-14 drop-shadow-lg lg:block" />
-          {/* Phones: the two heads instead of the full figures */}
-          <div className="mb-5 flex justify-center -space-x-3 lg:hidden" aria-hidden>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AVATARS.lion.head} alt="" className="size-16 rounded-full bg-accent-soft ring-4 ring-canvas" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={AVATARS.puma.head} alt="" className="size-16 rounded-full bg-danger-soft ring-4 ring-canvas" />
+          {/* Phones: the two cats look out from above the title */}
+          <div className="mb-3 flex items-end justify-center lg:hidden" aria-hidden>
+            <Animal species="lion" pose="peek" className="-mr-3 h-32 w-36 animate-[walk-in-left_0.9s_cubic-bezier(0.2,0.9,0.25,1)_both]" />
+            <Animal species="puma" pose="peek" flip className="-ml-3 h-28 w-32 animate-walk-in" />
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">ExpenseTracker</h1>
+          <h1 className="font-display text-4xl font-semibold tracking-tight">Wydatki</h1>
           <p className="mt-2 text-sm text-fg-muted">Wspólne wydatki, budżety i paragony czytane przez AI.</p>
         </div>
 

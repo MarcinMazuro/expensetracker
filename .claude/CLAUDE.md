@@ -32,17 +32,36 @@ Kod, komentarze, testy, Terraform, commity PO ANGIELSKU; UI po polsku.
 - Widok „Razem” (`/together`, `lib/household.ts`): wszyscy aktywni użytkownicy
   to jedno gospodarstwo. Kategorie łączone po nazwie. Kolor i awatar osoby
   (`user.color`, `user.avatar` lion/puma, `public/avatars`) wszędzie te same.
-- Wydatki wspólne (`lib/expense-writer.ts` `writeExpense`): kopia u każdego
-  uczestnika pod TYM SAMYM id, każda z połową kwoty i pozycji, `shared`
-  {total, participants, paidBy, items}. Edycja/usunięcie z dowolnego konta
-  zmienia obie kopie. Grosz reszty dostaje płacący (`lib/split.ts`).
-  Rozliczenie „kto komu” w `/together` (`settlement`).
+- Wydatki wspólne (`lib/expense-writer.ts` `writeExpense`, czysta logika w
+  `lib/sharing.ts` `divide`): kopia u każdego uczestnika pod TYM SAMYM id z jego
+  częścią kwoty i pozycji. Pełna wersja (wszystkie pozycje w `shared.items`,
+  ukryte też) tylko na koncie „home” (`shared.home`, kto dodał; stare kopie:
+  płacący). Podział: `shared.weights` (procenty) albo pozycja przypisana jednej
+  osobie (`item.assign`). Grosz reszty dostaje płacący. Kopia dłużnika ma
+  `unsettled: true`, aż ktoś kliknie „Oddane” (`setSettled`, `shared.settled`);
+  lista „Do oddania” w `/together` jest za cały czas (`listUnsettled`, `settlement`).
 - Pełny dostęp w gospodarstwie (decyzja Marcina 2026-11-05): każdy aktywny
   użytkownik widzi, edytuje i usuwa wydatki drugiego. Czyje dane - `?u=<id>`
   rozwiązywane przez `resolveOwner` (`lib/people.ts`), akcje dostają `owner`
   z formularza. `updatedBy` pokazuje, kto zmienił cudzy wydatek.
 - Pozycje wpisywane ręcznie: `parseItemsJson`, produkt/grupa z pamięci
   produktów albo `classifyItems` (Gemini) w `completeItems`.
+- Ukryte wydatki i ukryte pozycje (`lib/visibility.ts`, pola `hidden`,
+  `hiddenUntil`, `item.hidden`): druga osoba nie widzi ich nigdzie, a cena
+  ukrytej pozycji schodzi z każdej kwoty, którą widzi. Każdy odczyt cudzych
+  danych MUSI iść przez `listVisibleExpenses`/`getVisibleExpense`/`loadWhole`/
+  `loadHousehold(viewer, ...)` (wszystkie przez `projectFor`). Ukrywać może
+  tylko konto „home”; ukryta pozycja jest zawsze jego. Odkrycie o czasie
+  liczone przy odczycie i utrwalane przez `revealDue` w layoucie, ręczne
+  `revealExpense`. Cały wspólny wydatek nie może być ukryty (pozycje mogą).
+  Ukryte nie trafiają do pamięci sklepów i produktów. Zdjęcie paragonu
+  zostaje bez zmian (decyzja Marcina).
+- Motywy (`lib/theme.ts`): ciasteczko `et_theme`, na urządzenie, `data-theme` na
+  `html`; auto, jasny, ciemny, serduszka, święta (śnieg, lampki, czapki -
+  `Ambient.tsx`, `SantaHat.tsx`). Animacje i klasy w `globals.css`.
+- Lew i puma w pozach: `lib/animals.ts`, `components/Animal.tsx`, zdjęcia z
+  Wikimedia Commons w `public/animals` (w repo, licencje w `CREDITS.md` i w
+  Ustawieniach). Komunikat po zapisie: `lib/flash.ts` + `Toast.tsx`.
 - Prognozy (`pace`, `budgets` w `lib/stats.ts`): tempo liczone tylko z wydatków
   bieżących, cykliczne (`source: "recurring"`) wchodzą raz, razem z jeszcze
   niezaksięgowanymi (`upcomingCharges`). Średnia dzienna = prognoza / dni miesiąca.

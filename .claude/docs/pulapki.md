@@ -25,3 +25,11 @@
     job nie startuje, to nie błąd kodu. Wdrożenie ręczne z czystego drzewa:
     `gcloud builds submit --config cloudbuild.yaml --project expensetracker-mm --region europe-west1 --substitutions SHORT_SHA=$(git rev-parse --short HEAD) --service-account projects/expensetracker-mm/serviceAccounts/183279256871-compute@developer.gserviceaccount.com`
     (gcloud respektuje .gitignore - `.env.local` nie jest wysyłany; sprawdzić `gcloud meta list-files-for-upload .`).
+13. **`loading.tsx` + `notFound()` = status 200.** Ekran ładowania zaczyna
+    strumień, więc „nie ma takiej strony” przychodzi z kodem 200. Testy
+    prywatności sprawdzają treść strony, nie status.
+14. **„Transition was aborted because of invalid state”** w konsoli - przerwana
+    animacja przejścia (`ViewTransition`), np. przy zmianie rozmiaru okna.
+    Nieszkodliwe, test e2e to ignoruje.
+15. **Zdjęcia w `public/animals`** są na CC BY / CC BY-SA - przy każdej zmianie
+    uzupełnić `CREDITS.md` i `PHOTO_CREDITS` (autor, licencja, link).

@@ -5,7 +5,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import { Card, CardTitle, CategoryDot, buttonClass } from "@/components/ui";
 import { categoryMap, listCategories, UNKNOWN_CATEGORY } from "@/lib/categories";
 import { currentMonth, formatMonth, formatMonthShort, monthRange, monthsBack } from "@/lib/dates";
-import { listExpenses } from "@/lib/expenses";
+import { listVisibleExpenses } from "@/lib/expenses";
 import { formatMoney, formatMoneyShort } from "@/lib/money";
 import { resolveOwner } from "@/lib/people";
 import { requireUser } from "@/lib/session";
@@ -23,7 +23,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const months = monthsBack(month, 12);
   const [categories, expenses] = await Promise.all([
     listCategories(owner.id),
-    listExpenses(owner.id, monthRange(months[0]).from, monthRange(month).to),
+    listVisibleExpenses(user.id, owner.id, monthRange(months[0]).from, monthRange(month).to),
   ]);
   const categoriesById = categoryMap(categories);
   const category = (id: string) => categoriesById.get(id) ?? UNKNOWN_CATEGORY;

@@ -18,6 +18,7 @@ export function Donut({ slices, size = 180, centerLabel }: { slices: Slice[]; si
       <svg viewBox="0 0 42 42" className="size-full -rotate-0" role="img"
         aria-label={slices.map((s) => `${s.label} ${formatMoney(s.value)}`).join(", ")}>
         <circle cx="21" cy="21" r={radius} fill="none" className="stroke-surface-muted" strokeWidth="5" />
+        <g className="spin-in">
         {totalValue > 0 &&
           slices.map((slice) => {
             const length = (slice.value / totalValue) * 100;
@@ -30,10 +31,11 @@ export function Donut({ slices, size = 180, centerLabel }: { slices: Slice[]; si
             offset -= length;
             return circle;
           })}
+        </g>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <span className="text-xs text-fg-muted">{centerLabel}</span>
-        <span className="text-lg font-semibold tabular">{formatMoney(totalValue)}</span>
+        <span className="font-display text-xl font-semibold tabular">{formatMoney(totalValue)}</span>
       </div>
     </div>
   );

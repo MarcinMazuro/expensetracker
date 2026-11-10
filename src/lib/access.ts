@@ -36,10 +36,12 @@ export function devLoginEnabled(env: Record<string, string | undefined> = proces
 /** Each person gets a colour in shared views, assigned in sign-up order. */
 export const PERSON_COLORS = ["#0d9488", "#e11d48", "#7c3aed", "#d97706", "#2563eb"];
 
-/** Animal avatars in public/avatars - a head for small sizes, a full cut-out for large ones. */
+/** Avatars to choose from: a head for small sizes, a full cut-out for large ones, and the species behind them. */
 export const AVATARS = {
-  lion: { name: "Lew", head: "/avatars/lion.webp", full: "/avatars/lion-full.webp" },
-  puma: { name: "Puma", head: "/avatars/puma.webp", full: "/avatars/puma-full.webp" },
+  lion: { name: "Lew", head: "/avatars/lion.webp", full: "/avatars/lion-full.webp", species: "lion" },
+  lion2: { name: "Lew z grzywą", head: "/animals/lion-portrait-head.webp", full: "/animals/lion-portrait.webp", species: "lion" },
+  puma: { name: "Puma", head: "/avatars/puma.webp", full: "/avatars/puma-full.webp", species: "puma" },
+  puma2: { name: "Puma z bliska", head: "/animals/puma-portrait-head.webp", full: "/animals/puma-portrait.webp", species: "puma" },
 } as const;
 
 export type AvatarId = keyof typeof AVATARS;
@@ -55,4 +57,9 @@ export function defaultAvatar(email: string, value = process.env.DEFAULT_AVATARS
     if (address === email.trim().toLowerCase() && isAvatarId(avatar)) return avatar;
   }
   return undefined;
+}
+
+/** Which big cat a person is, from the avatar they chose. */
+export function speciesOf(avatar: string | undefined): "lion" | "puma" | undefined {
+  return isAvatarId(avatar) ? AVATARS[avatar].species : undefined;
 }

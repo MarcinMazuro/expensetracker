@@ -142,6 +142,14 @@ function generate(person) {
 
   // One-off bigger things
   const at = (offset) => days[Math.min(days.length - 1, offset)];
+  // Hidden from the other person: one until a click, one until a set moment
+  const inAWeek = new Date(Date.now() + 7 * 86_400_000).toISOString();
+  if (marcin) {
+    add(today, "Prezenty", "Apart - niespodzianka", 890, { hidden: true, hiddenUntil: inAWeek });
+  } else {
+    add(today, "Prezenty", "Perfumy dla Marcina", 340, { hidden: true });
+    add(at(days.length - 3), "Ubrania", "Zalando - sekretne zakupy", 279, { hidden: true, hiddenUntil: inAWeek });
+  }
   if (marcin) {
     add(at(24), "Elektronika", "Media Expert - słuchawki Sony", 899, { note: "WH-1000XM6, promocja" });
     add(at(70), "Prezenty", "Apart", 420, { note: "prezent na rocznicę", tags: ["rocznica"] });
@@ -151,7 +159,7 @@ function generate(person) {
   return out;
 }
 
-/** Things the two of you pay for together - split equally, one person pays. */
+/** Things the two of you pay for together - mostly half and half, one person pays. */
 function generateShared() {
   const out = [];
   const add = (date, paidBy, category, merchant, zl, extra = {}) => out.push({ date, paidBy, category, merchant, amount: grosze(zl), ...extra });
@@ -170,12 +178,27 @@ function generateShared() {
   add(at(40), "agnieszka", "Podróże", "Booking.com - Zakopane", 0, { currency: "EUR", eur: 298, tags: ["wyjazd"], note: "weekend w górach" });
   add(at(41), "marcin", "Podróże", "Karczma Zapiecek", 186, { tags: ["wyjazd"] });
   add(at(55), "marcin", "Chemia i dom", "IKEA", 412.5, { note: "zasłony i lampka" });
+  // Not half and half: the rent top-up is 70/30
+  add(at(days.length - 6), "marcin", "Mieszkanie i rachunki", "Dopłata do ogrzewania", 380, { weights: { marcin: 70, agnieszka: 30 } });
+  // Line by line: some things are for one person only, and one is a secret
+  const d = at(days.length - 2);
+  add(d, "marcin", "Spożywcze", "Lidl", 0, {
+    source: "receipt",
+    items: [
+      ...receiptItems(GROCERIES, 4, d, ["mleko", "chleb"]),
+      { name: "Odżywka białkowa 500 g", product: "odżywka białkowa", group: "other", unit: "szt", quantity: 1, amount: 8999, assign: "marcin" },
+      { name: "Sok jabłkowy 1 l", product: "sok jabłkowy", group: "drinks", unit: "l", quantity: 2, amount: 1198, assign: "agnieszka" },
+      { name: "Czekoladki Lindt", product: "czekoladki", group: "sweets", unit: "szt", quantity: 1, amount: 3499, hidden: true },
+    ],
+  });
   return out;
 }
 
-const splitAmount = (total, people, payerIndex) => {
-  const base = Math.floor(total / people);
-  return Array.from({ length: people }, (_, i) => base + (i === payerIndex ? total - base * people : 0));
+/** An amount divided by percentages; the odd grosz goes to the payer (same rule as src/lib/sharing.ts). */
+const splitAmount = (total, weights, paidBy) => {
+  const parts = Object.fromEntries(Object.entries(weights).map(([key, w]) => [key, Math.floor((total * w) / 100)]));
+  parts[paidBy] += total - Object.values(parts).reduce((s, v) => s + v, 0);
+  return parts;
 };
 
 const RECURRING = {
@@ -256,10 +279,11 @@ async function main() {
   const time = (date, i) => `${date}T${String(8 + (i % 12)).padStart(2, "0")}:${String((i * 7) % 60).padStart(2, "0")}:00.000Z`;
   const record = (p, e, doc) => {
     p.writes.push([p.userRef.collection("expenses").doc(doc.id), doc.data]);
-    p.merchants.set(merchantKey(e.merchant), { name: e.merchant, categoryId: p.categoryIds[e.category], lastUsed: doc.data.createdAt });
-    for (const item of doc.data.items ?? []) p.products.set(merchantKey(item.product), { name: item.product, group: item.group, lastUsed: doc.data.createdAt });
     p.spent += doc.data.amountPln;
     p.count++;
+    if (e.hidden) return;
+    p.merchants.set(merchantKey(e.merchant), { name: e.merchant, categoryId: p.categoryIds[e.category], lastUsed: doc.data.createdAt });
+    for (const item of doc.data.items ?? []) p.products.set(merchantKey(item.product), { name: item.product, group: item.group, lastUsed: doc.data.createdAt });
   };
 
   for (const p of Object.values(people)) {
@@ -275,34 +299,52 @@ async function main() {
           source: e.source ?? "manual", createdAt: time(e.date, i), updatedAt: time(e.date, i),
           ...(e.items && { items: e.items.map((item) => ({ ...item, categoryId: p.categoryIds[e.category] })) }),
           ...(e.recurring && { recurringId: p.recurringIds[e.recurring] }),
+          ...(e.hidden && { hidden: true, ...(e.hiddenUntil && { hiddenUntil: e.hiddenUntil }) }),
         },
       });
     }
   }
 
-  // Shared expenses: one copy per person under the same id, each with their half
+  // Shared expenses: one copy per person under the same id, each with their part.
+  // The payer's copy is the "home" one and keeps the full list of lines.
   const order = PEOPLE.map((x) => x.key);
+  const settledBefore = days[Math.max(0, days.length - 22)];
   for (const [i, e] of generateShared().entries()) {
     const fxRate = e.currency === "EUR" ? 4.2875 : 1;
     const total = e.currency === "EUR" ? grosze(e.eur) : e.items ? e.items.reduce((s, item) => s + item.amount, 0) : e.amount;
-    const payerIndex = order.indexOf(e.paidBy);
-    const shares = splitAmount(total, order.length, payerIndex);
-    order.forEach((key, index) => {
+    const weights = e.weights ?? Object.fromEntries(order.map((key) => [key, 100 / order.length]));
+    // Lines are split by the percentages unless assigned to one person; a hidden line stays with the payer
+    const owner = (item) => (item.hidden ? e.paidBy : item.assign);
+    const lines = e.items?.map((item) => (item.hidden ? { ...item, assign: e.paidBy } : item));
+    const hiddenSum = (lines ?? []).filter((item) => item.hidden).reduce((s, item) => s + item.amount, 0);
+    const settled = e.date < settledBefore;
+    const stamp = time(e.date, i + 500);
+    order.forEach((key) => {
       const p = people[key];
-      const items = e.items?.map((item) => ({
-        ...item,
-        categoryId: p.categoryIds[e.category],
-        amount: splitAmount(item.amount, order.length, payerIndex)[index],
-        quantity: Math.round((item.quantity / order.length) * 1000) / 1000,
-      }));
+      const part = (amount) => splitAmount(amount, weights, e.paidBy)[key];
+      const items = lines
+        ?.filter((item) => !owner(item) || owner(item) === key)
+        .map((item) => ({
+          ...item,
+          categoryId: p.categoryIds[e.category],
+          ...(!owner(item) && { amount: part(item.amount), quantity: Math.round(((item.quantity * weights[key]) / 100) * 1000) / 1000 }),
+        }))
+        .filter((item) => owner(item) || weights[key] > 0);
+      const amount = lines ? items.reduce((s, item) => s + item.amount, 0) : part(total);
+      const isHome = key === e.paidBy;
       record(p, e, {
         id: `shared-${String(i).padStart(4, "0")}`,
         data: {
-          amount: shares[index], currency: e.currency ?? "PLN", amountPln: Math.round(shares[index] * fxRate), fxRate, date: e.date, merchant: e.merchant,
+          amount, currency: e.currency ?? "PLN", amountPln: Math.round(amount * fxRate), fxRate, date: e.date, merchant: e.merchant,
           categoryId: p.categoryIds[e.category], note: e.note ?? "", tags: e.tags ?? [], source: e.source ?? "manual",
-          createdAt: time(e.date, i + 500), updatedAt: time(e.date, i + 500),
-          ...(items && { items }),
-          shared: { total, participants: order, paidBy: e.paidBy, ...(e.items && { items: e.items }) },
+          createdAt: stamp, updatedAt: stamp,
+          ...(items?.length && { items }),
+          shared: {
+            total: isHome ? total : total - hiddenSum, participants: order, paidBy: e.paidBy, home: e.paidBy, weights,
+            ...(isHome && lines && { items: lines }),
+            ...(settled && { settled: true, settledAt: stamp, settledBy: e.paidBy }),
+          },
+          ...(!isHome && amount > 0 && !settled && { unsettled: true }),
         },
       });
     });

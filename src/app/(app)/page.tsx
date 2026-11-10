@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
-import { AVATARS, isAvatarId } from "@/lib/access";
+import { Animal } from "@/components/Animal";
+import { CountUp } from "@/components/CountUp";
+import { speciesOf } from "@/lib/access";
+import { ANIMALS, poseOfTheDay } from "@/lib/animals";
 import { BarChart } from "@/components/charts/BarChart";
 import { ShareBar } from "@/components/charts/Shared";
 import { Donut } from "@/components/charts/Donut";
@@ -31,7 +34,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const [categories, expenses, members, upcoming] = await Promise.all([
     listCategories(user.id),
     listExpenses(user.id, monthRange(previousMonth).from, monthRange(month).to),
-    loadHousehold(monthRange(month).from, monthRange(month).to),
+    loadHousehold(user.id, monthRange(month).from, monthRange(month).to),
     upcomingCharges(user.id, month),
   ]);
   members.sort((a, b) => (a.user.id === user.id ? -1 : b.user.id === user.id ? 1 : 0));
@@ -51,33 +54,41 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const daily = dailySeries(thisMonth, month);
   const isCurrentMonth = month === currentMonth();
 
+  const species = speciesOf(user.avatar);
+  // In the Christmas theme the standing pose is used everywhere - it is the one with a hat
+  const pose = poseOfTheDay(now);
+  const overBudget = isCurrentMonth ? budgetList.filter((b) => b.state === "over") : [];
+
   return (
-    <>
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="stagger space-y-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <MonthSwitcher month={month} path="/" />
-        <div className="flex flex-wrap items-center gap-2">
-          <LinkButton href="/scan" variant="secondary" className="hidden sm:inline-flex">
-            <NavIcon name="scan" className="size-4" /> Skanuj paragon
-          </LinkButton>
-          <LinkButton href="/expenses/new" className="lg:hidden">+ Dodaj</LinkButton>
-        </div>
+        <LinkButton href="/scan" variant="secondary" className="hidden sm:inline-flex">
+          <NavIcon name="scan" className="size-4" /> Skanuj paragon
+        </LinkButton>
       </header>
 
       <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr]">
-        {/* Greeting: your month, with your animal standing at the edge */}
-        <section className="relative overflow-hidden rounded-3xl border border-line bg-surface p-6 sm:p-7">
+        {/* The scene: your month, with your animal walking in */}
+        <section className="relative min-h-[16.5rem] overflow-hidden rounded-[2rem] sm:min-h-[13.5rem] border border-line/80 bg-surface p-5 shadow-card sm:p-7">
           <div aria-hidden className="pointer-events-none absolute inset-0"
-            style={{ background: `radial-gradient(80% 120% at 100% 100%, color-mix(in oklab, ${user.color} 22%, transparent), transparent 65%)` }} />
-          {isAvatarId(user.avatar) && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={AVATARS[user.avatar].full} alt="" aria-hidden
-              className="pointer-events-none absolute right-2 bottom-0 h-36 drop-shadow-xl sm:right-6 sm:h-48" />
+            style={{ background: `radial-gradient(90% 130% at 100% 100%, color-mix(in oklab, ${user.color} 30%, transparent), transparent 62%), radial-gradient(60% 80% at 0% 0%, color-mix(in oklab, var(--c-glow-2) 14%, transparent), transparent 70%)` }} />
+          {/* The ground the animal stands on */}
+          <div aria-hidden className="pointer-events-none absolute right-[-10%] bottom-[-1.6rem] h-12 w-[75%] rounded-[50%] bg-black/25 blur-xl" />
+          {species && (
+            <div className="absolute right-1 bottom-0 h-[50%] w-[44%] animate-walk-in sm:right-6 sm:h-[78%] sm:w-[38%]">
+              {/* Santa hat only fits the standing cut-out, so Christmas keeps that pose */}
+              <Animal species={species} pose={pose} className="not-christmas size-full animate-breathe origin-bottom" />
+              <Animal species={species} pose="stand" className="only-christmas size-full animate-breathe origin-bottom" />
+            </div>
           )}
-          <div className="relative pr-28 sm:pr-44">
-            <p className="text-sm text-fg-muted">Cześć, {user.name.split(" ")[0]} {isAvatarId(user.avatar) ? (user.avatar === "lion" ? "🦁" : "🐆") : "👋"}</p>
+          <div className="relative sm:max-w-[58%]">
+            <p className="text-sm text-fg-muted">Cześć, {user.name.split(" ")[0]} {species ? ANIMALS[species].emoji : "👋"}</p>
             <h1 className="mt-0.5 text-sm font-medium">Twoje wydatki {inMonth(month)}</h1>
-            <p className="mt-3 text-4xl font-semibold tracking-tight tabular sm:text-5xl">{formatMoney(stats.spent)}</p>
-            <p className="mt-2">
+            <p className="mt-3 font-display text-[2.6rem] leading-none font-semibold tracking-tight tabular sm:text-6xl">
+              <CountUp value={stats.spent} />
+            </p>
+            <p className="mt-3 max-w-[54%] sm:max-w-none">
               <ChangeBadge value={change(stats.spent, isCurrentMonth ? lastMonthToDate : total(lastMonth))}
                 label={isCurrentMonth ? "vs ten sam okres m-c temu" : "vs poprzedni miesiąc"} />
             </p>
@@ -86,11 +97,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
         {household.length > 1 ? (
           <Link href={`/together?month=${month}`}
-            className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-line bg-surface p-6 transition hover:border-accent">
+            className="group relative flex flex-col justify-between overflow-hidden rounded-[2rem] border border-line/80 bg-surface p-5 shadow-card transition active:scale-[0.98] sm:p-6">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-fg-muted">Razem {inMonth(month)}</p>
-                <p className="mt-1 text-2xl font-semibold tabular">{formatMoney(household.reduce((s, p) => s + p.total, 0))}</p>
+                <p className="mt-1 font-display text-3xl font-semibold tabular">{formatMoney(household.reduce((s, p) => s + p.total, 0))}</p>
               </div>
               <span className="flex -space-x-3">{household.map((p) => <Avatar key={p.user.id} user={p.user} size={52} ring />)}</span>
             </div>
@@ -102,22 +113,32 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             </div>
           </Link>
         ) : (
-          <Card className="rounded-3xl">
+          <Card>
             <p className="text-sm text-fg-muted">Wydatków</p>
-            <p className="mt-1 text-2xl font-semibold tabular">{thisMonth.length}</p>
+            <p className="mt-1 font-display text-3xl font-semibold tabular">{thisMonth.length}</p>
           </Card>
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      {overBudget.length > 0 && (
+        <Link href="/categories" className="relative flex items-center gap-3 overflow-hidden rounded-3xl border border-danger/40 bg-danger-soft/60 py-3 pr-4 pl-28 text-sm transition active:scale-[0.98]">
+          <Animal species="lion" pose="roar" className="absolute bottom-0 left-1 h-14 w-24" />
+          <span>
+            <strong className="text-danger">Budżet przekroczony.</strong>{" "}
+            {overBudget.map((b) => `${b.category.name} o ${formatMoney(b.spent - b.budget)}`).join(", ")}
+          </span>
+        </Link>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Card>
           <p className="text-sm text-fg-muted">Średnio dziennie</p>
-          <p className="mt-1 text-xl font-semibold tabular">{formatMoney(stats.dailyAverage)}</p>
+          <p className="mt-1 font-display text-2xl font-semibold tabular">{formatMoney(stats.dailyAverage)}</p>
           <p className="mt-2 text-xs text-fg-muted">{plural(thisMonth.length, "wydatek", "wydatki", "wydatków")}</p>
         </Card>
         <Card>
           <p className="text-sm text-fg-muted">{isCurrentMonth ? "Prognoza na koniec" : "Poprzedni miesiąc"}</p>
-          <p className="mt-1 text-xl font-semibold tabular">{formatMoney(isCurrentMonth ? stats.projected : total(lastMonth))}</p>
+          <p className="mt-1 font-display text-2xl font-semibold tabular">{formatMoney(isCurrentMonth ? stats.projected : total(lastMonth))}</p>
           <p className="mt-2 text-xs text-fg-muted">
             {isCurrentMonth ? (stats.fixed > 0 ? `w tym cykliczne ${formatMoney(stats.fixed)}` : `po ${stats.elapsedDays} z ${stats.days} dni`) : plural(lastMonth.length, "wydatek", "wydatki", "wydatków")}
           </p>
@@ -126,7 +147,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <p className="text-sm text-fg-muted">Budżet miesięczny</p>
           {budgetTotal > 0 ? (
             <>
-              <p className="mt-1 text-xl font-semibold tabular">
+              <p className="mt-1 font-display text-2xl font-semibold tabular">
                 {budgetTotal - stats.spent >= 0 ? `zostało ${formatMoney(budgetTotal - stats.spent)}` : `ponad o ${formatMoney(stats.spent - budgetTotal)}`}
               </p>
               <div className="mt-3">
@@ -135,12 +156,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
               </div>
             </>
           ) : (
-            <Link href="/categories" className="mt-2 block text-sm text-accent hover:underline">Ustaw budżety kategorii →</Link>
+            <Link href="/categories" className="mt-2 block text-sm font-medium text-accent">Ustaw budżety kategorii</Link>
           )}
         </Card>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardTitle>Dzień po dniu</CardTitle>
           <BarChart
@@ -174,7 +195,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         </Card>
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardTitle action={<Link href="/categories" className="text-xs text-accent hover:underline">Edytuj</Link>}>Budżety</CardTitle>
           {budgetList.length === 0 ? (
@@ -224,8 +245,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         </Card>
       </div>
 
-      <Card className="mt-3">
-        <CardTitle action={<Link href={`/expenses?month=${month}`} className="text-xs text-accent hover:underline">Wszystkie →</Link>}>
+      <Card>
+        <CardTitle action={<Link href={`/expenses?month=${month}`} className="text-xs font-medium text-accent">Wszystkie</Link>}>
           Ostatnie wydatki
         </CardTitle>
         {thisMonth.length === 0 ? (
@@ -238,6 +259,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </div>
         )}
       </Card>
-    </>
+    </div>
   );
 }

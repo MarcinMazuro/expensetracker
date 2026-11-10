@@ -133,16 +133,33 @@ export function sharedFeed(members: Member[], month: string, limit = 12): FeedEn
     .slice(0, limit);
 }
 
-/** Who owes whom this month for shared expenses (each person owes the payer their half). */
-export function settlement(members: Member[], month: string) {
-  const shares = members.flatMap((m) =>
-    inMonth(m.expenses, month)
-      .filter((e) => e.shared)
-      .map((e) => ({ owner: m.user.id, paidBy: e.shared!.paidBy, amount: e.amountPln })),
-  );
-  const sharedTotal = shares.reduce((s, x) => s + x.amount, 0);
-  const count = new Set(members.flatMap((m) => inMonth(m.expenses, month).filter((e) => e.shared).map((e) => e.id))).size;
-  return { debts: settle(shares), sharedTotal, count };
+export interface DebtLine {
+  id: string;
+  /** Who owes. */
+  from: User;
+  /** Who paid. */
+  to: User;
+  amountPln: number;
+  merchant: string;
+  date: string;
+}
+
+/**
+ * Everything not paid back yet, whatever the month: each unsettled copy is
+ * its owner's debt to whoever paid. Debts in both directions are netted.
+ */
+export function settlement(unsettled: { user: User; expenses: Expense[] }[], users: User[]) {
+  const byId = new Map(users.map((u) => [u.id, u]));
+  const lines: DebtLine[] = unsettled
+    .flatMap(({ user, expenses }) =>
+      expenses.flatMap((e) => {
+        const to = e.shared && byId.get(e.shared.paidBy);
+        return to && to.id !== user.id ? [{ id: e.id, from: user, to, amountPln: e.amountPln, merchant: e.merchant, date: e.date }] : [];
+      }),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const debts = settle(lines.map((l) => ({ owner: l.from.id, paidBy: l.to.id, amount: l.amountPln })));
+  return { debts, lines };
 }
 
 export interface Insight {

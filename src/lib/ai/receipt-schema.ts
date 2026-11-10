@@ -70,6 +70,9 @@ export interface ReceiptDraftItem {
   quantity: number;
   unit: Unit;
   group: ProductGroup;
+  /** Set while reviewing: whose line it is in a shared receipt, and whether it is hidden. */
+  assign?: string;
+  hidden?: boolean;
 }
 
 /** Lowercase, trimmed, single spaces - "  Pierś z KURCZAKA " -> "pierś z kurczaka". */

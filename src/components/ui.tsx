@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { AVATARS } from "@/lib/access";
+import { Animal } from "@/components/Animal";
 import { cn } from "@/lib/cn";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cn("rounded-2xl border border-line bg-surface p-5", className)}>{children}</section>;
+  return <section className={cn("rounded-3xl border border-line/80 bg-surface p-5 shadow-card", className)}>{children}</section>;
 }
 
 export function CardTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
@@ -27,7 +27,7 @@ export function PageHeader({
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-fg-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -46,7 +46,7 @@ export type ButtonVariant = keyof typeof buttonStyles;
 
 export function buttonClass(variant: ButtonVariant = "primary", className?: string) {
   return cn(
-    "inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50",
+    "inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-medium transition active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
     buttonStyles[variant],
     className,
   );
@@ -69,7 +69,7 @@ export function LinkButton({
 }
 
 export const inputClass =
-  "h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm outline-none transition placeholder:text-fg-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/20";
+  "h-11 w-full rounded-2xl border border-line bg-surface px-3.5 text-base outline-none sm:text-sm transition placeholder:text-fg-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/20";
 
 export function Field({
   label,
@@ -122,14 +122,13 @@ export function CategoryBadge({ emoji, name, color }: { emoji: string; name: str
 
 export function EmptyState({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-      <div className="mb-4 flex items-end justify-center gap-1 opacity-90" aria-hidden>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={AVATARS.lion.full} alt="" className="h-20" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={AVATARS.puma.full} alt="" className="h-16" />
+    <div className="rounded-3xl border border-dashed border-line px-6 pt-8 pb-10 text-center">
+      {/* Nothing to do here - the cats are lying down */}
+      <div className="mb-4 flex items-end justify-center gap-2" aria-hidden>
+        <Animal species="lion" pose="lie" className="h-24 w-28 animate-rise" />
+        <Animal species="puma" pose="lie" flip className="h-20 w-24 animate-rise [animation-delay:120ms]" />
       </div>
-      <p className="font-medium">{title}</p>
+      <p className="font-display text-lg font-semibold">{title}</p>
       {children && <div className="mt-2 text-sm text-fg-muted">{children}</div>}
     </div>
   );

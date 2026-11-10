@@ -4,14 +4,15 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { saveReceiptExpenses, scanReceipt } from "@/app/actions/receipts";
 import { Alert, Button, Card, CardTitle, CategoryBadge, Field, inputClass } from "@/components/ui";
-import { Avatar } from "@/components/Avatar";
+import { HiddenFields, type HiddenMode } from "@/components/HiddenFields";
+import { AssignChip, HideChip, ShareControls, type Person } from "@/components/ShareControls";
 import { NavIcon } from "@/components/Navigation";
 import { splitByCategory, type ReceiptDraft, type ReceiptDraftItem } from "@/lib/ai/receipt-schema";
 import { cn } from "@/lib/cn";
 import { CURRENCIES, formatMoney, parseAmount, toInputValue } from "@/lib/money";
 import { PRODUCT_GROUPS, UNITS, type Unit } from "@/lib/product-groups";
-import { splitAmount } from "@/lib/split";
-import type { Category, User } from "@/lib/types";
+import { divide, normalizeWeights, SPLIT } from "@/lib/sharing";
+import type { Category } from "@/lib/types";
 
 const MAX_EDGE = 2000;
 
@@ -40,8 +41,6 @@ async function shrink(file: File): Promise<File> {
 
 type Stage = "pick" | "reading" | "review";
 
-type Person = Pick<User, "id" | "name" | "color" | "picture" | "avatar">;
-
 export function ReceiptScanner({ categories, me, household }: { categories: Category[]; me: Person; household: Person[] }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,11 +54,25 @@ export function ReceiptScanner({ categories, me, household }: { categories: Cate
   const [note, setNote] = useState("");
   const [tags, setTags] = useState("");
   const [shared, setShared] = useState(false);
+  // Me first - that order is the slider's left and right
+  const people = [...household].sort((a, b) => (a.id === me.id ? -1 : b.id === me.id ? 1 : 0));
+  const ids = people.map((p) => p.id);
+  const [paidBy, setPaidBy] = useState(me.id);
+  const [weights, setWeights] = useState(() => normalizeWeights(ids));
+  const [hidden, setHidden] = useState(false);
+  const [hiddenMode, setHiddenMode] = useState<HiddenMode>("manual");
+  const [hiddenUntil, setHiddenUntil] = useState("");
   const [saving, startSaving] = useTransition();
 
   const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const groups = draft ? splitByCategory(draft) : [];
   const itemsSum = draft?.items.reduce((s, i) => s + i.amount, 0) ?? 0;
+  // The same arithmetic the server will do, for the live preview
+  const parts = divide({
+    total: draft?.total ?? 0,
+    items: (draft?.items ?? []).map((i) => ({ name: i.name, amount: i.amount, assign: i.assign, hidden: i.hidden })),
+    shared, participants: ids, paidBy, home: me.id, weights,
+  }).parts;
 
   async function onFile(file: File | undefined) {
     if (!file) return;
@@ -92,7 +105,16 @@ export function ReceiptScanner({ categories, me, household }: { categories: Cate
     if (!draft) return;
     setError(null);
     startSaving(async () => {
-      const result = await saveReceiptExpenses({ ...draft, receiptPath, mode, categoryId: singleCategory, note, tags, shared });
+      const result = await saveReceiptExpenses({
+        ...draft,
+        items: draft.items.map(({ assign, hidden: lineHidden, ...item }) => ({
+          ...item,
+          ...(shared && assign && assign !== SPLIT && { assign }),
+          ...(lineHidden && { hidden: true }),
+        })),
+        receiptPath, mode, categoryId: singleCategory, note, tags, shared, paidBy, weights: JSON.stringify(weights),
+        hiddenSettings: { hidden: hidden ? "on" : "", hiddenMode, hiddenUntil },
+      });
       if (result.error) setError(result.error);
       else router.push(`/expenses?month=${result.month}`);
     });
@@ -179,20 +201,16 @@ export function ReceiptScanner({ categories, me, household }: { categories: Cate
 
         <Card>
           <CardTitle>Jak zapisać</CardTitle>
-          {household.length > 1 && (
-            <label className={cn("mb-3 flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition",
-              shared ? "border-accent bg-accent-soft/40" : "border-line hover:bg-surface-muted")}>
-              <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="size-5 accent-[var(--c-accent)]" />
-              <span className="flex -space-x-2">{household.map((p) => <Avatar key={p.id} user={p} size={30} ring />)}</span>
-              <span className="min-w-0 flex-1 text-sm">
-                <span className="block font-medium">Wspólne zakupy</span>
-                <span className="block text-xs text-fg-muted">
-                  {shared
-                    ? household.map((p, i) => `${p.id === me.id ? "Ty" : p.name} ${formatMoney(splitAmount(draft.total, household.length, Math.max(0, household.findIndex((h) => h.id === me.id)))[i], draft.currency)}`).join(" · ")
-                    : "Podziel po równo między konta"}
-                </span>
-              </span>
-            </label>
+          {people.length > 1 && (
+            <div className="mb-3 space-y-3">
+              <ShareControls people={people} me={me} shared={shared}
+                onShared={(value) => { setShared(value); if (value) setHidden(false); }}
+                paidBy={paidBy} onPaidBy={setPaidBy} weights={weights} onWeights={setWeights}
+                parts={Object.fromEntries(ids.map((id) => [id, parts[id]?.amount ?? 0]))} currency={draft.currency} hasLines={draft.items.length > 0} />
+              <HiddenFields hidden={hidden} onHidden={(value) => { setHidden(value); if (value) setShared(false); }}
+                mode={hiddenMode} onMode={setHiddenMode} until={hiddenUntil} onUntil={setHiddenUntil}
+                otherName={people[1]?.name} hiddenLines={draft.items.filter((i) => i.hidden).length} wholeAllowed={!shared} />
+            </div>
           )}
           <div className="grid grid-cols-2 gap-2 rounded-xl bg-surface-muted p-1 text-sm">
             {([["split", `Podziel na kategorie (${groups.length})`], ["single", "Jeden wydatek"]] as const).map(([value, label]) => (
@@ -229,7 +247,7 @@ export function ReceiptScanner({ categories, me, household }: { categories: Cate
           </CardTitle>
           <ul className="divide-y divide-line">
             {draft.items.map((item, i) => (
-              <li key={i} className="grid grid-cols-[1fr_6.5rem_2rem] items-center gap-2 px-2 py-2.5 sm:grid-cols-[1fr_12rem_6.5rem_2rem]">
+              <li key={i} className={cn("grid grid-cols-[1fr_6.5rem_2rem] items-center gap-2 rounded-xl px-2 py-3 transition-colors sm:grid-cols-[1fr_12rem_6.5rem_2rem]", item.hidden && "bg-accent-soft/30")}>
                 <input value={item.name} onChange={(e) => updateItem(i, { name: e.target.value })}
                   className="min-w-0 bg-transparent text-sm outline-none focus:underline" aria-label="Nazwa pozycji" />
                 <select value={item.categoryId} onChange={(e) => updateItem(i, { categoryId: e.target.value })}
@@ -250,6 +268,16 @@ export function ReceiptScanner({ categories, me, household }: { categories: Cate
                     {UNITS.map((u) => <option key={u} value={u}>{u === "szt" ? "szt." : u}</option>)}
                   </select>
                 </div>
+                {people.length > 1 && (
+                  <div className="col-span-3 flex flex-wrap items-center gap-2 sm:col-span-4">
+                    {shared && (
+                      <AssignChip people={people} me={me} value={item.hidden ? me.id : (item.assign ?? SPLIT)}
+                        onChange={(assign) => updateItem(i, { assign, ...(assign !== me.id && { hidden: false }) })} />
+                    )}
+                    {/* A hidden line can only be your own */}
+                    <HideChip hidden={item.hidden === true} onChange={(value) => updateItem(i, { hidden: value, ...(value && shared && { assign: me.id }) })} />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -1,7 +1,7 @@
 import { categoryMap, listCategories } from "@/lib/categories";
 import { expensesToCsv } from "@/lib/csv";
 import { currentMonth, isIsoMonth, monthRange } from "@/lib/dates";
-import { listExpenses } from "@/lib/expenses";
+import { listVisibleExpenses } from "@/lib/expenses";
 import { filterExpenses } from "@/lib/filters";
 import { resolveOwner } from "@/lib/people";
 import { currentUser } from "@/lib/session";
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     ({ from, to } = monthRange(label));
   }
 
-  const [categories, expenses] = await Promise.all([listCategories(user.id), listExpenses(user.id, from, to)]);
+  const [categories, expenses] = await Promise.all([listCategories(user.id), listVisibleExpenses(viewer.id, user.id, from, to)]);
   const filtered = filterExpenses(expenses, {
     category: params.get("category") ?? "",
     q: params.get("q") ?? "",

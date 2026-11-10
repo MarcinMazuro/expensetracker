@@ -97,3 +97,31 @@ export function inMonth(month: string, now = new Date()): string {
   const name = LOCATIVE[Number(month.slice(5, 7)) - 1];
   return month.slice(0, 4) === today(now).slice(0, 4) ? `w ${name}` : `w ${name} ${month.slice(0, 4)}`;
 }
+
+const wallClock = new Intl.DateTimeFormat("sv-SE", { timeZone: TIME_ZONE, dateStyle: "short", timeStyle: "short" });
+
+/** An instant as the value of <input type="datetime-local">, in Polish time: "2026-12-24T18:00". */
+export function toWarsawInput(iso: string): string {
+  return wallClock.format(new Date(iso)).replace(" ", "T");
+}
+
+/** "2026-12-24T18:00" read as Polish time -> ISO instant, or null when invalid. Handles summer and winter time. */
+export function fromWarsawInput(value: unknown): string | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const asUtc = Date.parse(`${value}:00Z`);
+  if (Number.isNaN(asUtc)) return null;
+  // Twice, because the offset at the first guess can differ near a clock change
+  let instant = asUtc;
+  for (let i = 0; i < 2; i++) {
+    const shown = Date.parse(`${toWarsawInput(new Date(instant).toISOString())}:00Z`);
+    instant += asUtc - shown;
+  }
+  return toWarsawInput(new Date(instant).toISOString()) === value ? new Date(instant).toISOString() : null;
+}
+
+const dateTimeShort = new Intl.DateTimeFormat("pl-PL", { timeZone: TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+/** "2026-12-24T17:00:00.000Z" -> "24 gru, 18:00" */
+export function formatDateTimeShort(iso: string): string {
+  return dateTimeShort.format(new Date(iso));
+}

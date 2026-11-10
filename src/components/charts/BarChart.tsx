@@ -50,7 +50,8 @@ export function BarChart({
                 width={width * 0.7}
                 height={Math.max(h, bar.value > 0 ? 1 : 0)}
                 rx={Math.min(width * 0.2, 1.2)}
-                className={bar.active ? "fill-accent" : "fill-accent/35"}
+                className={`grow-y ${bar.active ? "fill-accent" : "fill-accent/35"}`}
+                style={{ ["--i" as string]: i }}
               />
             </g>
           );

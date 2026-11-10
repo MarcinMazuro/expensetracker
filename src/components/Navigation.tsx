@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions/auth";
 import { Avatar } from "@/components/Avatar";
-import { AVATARS, isAvatarId, type AvatarId } from "@/lib/access";
+import { Lights } from "@/components/Ambient";
+import { Animal } from "@/components/Animal";
+import { speciesOf } from "@/lib/access";
 import { cn } from "@/lib/cn";
 import type { User } from "@/lib/types";
 
@@ -61,25 +63,26 @@ type Person = Pick<User, "id" | "name" | "color" | "picture" | "avatar">;
 
 export function Navigation({ user, isAdmin, people }: { user: Person; isAdmin: boolean; people: Person[] }) {
   const pathname = usePathname();
+  const cats = people.flatMap((p) => { const species = speciesOf(p.avatar); return species ? [{ id: p.id, species }] : []; });
   const items = isAdmin ? [...MAIN, { href: "/admin", label: "Dostęp", icon: "users" as Icon }] : MAIN;
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-line bg-surface/80 px-4 py-6 backdrop-blur-xl lg:flex">
         <Link href="/" className="mb-8 flex items-center gap-2.5 px-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.svg" alt="" className="size-8" />
-          <span className="font-semibold tracking-tight">ExpenseTracker</span>
+          <span className="font-display text-xl font-semibold tracking-tight">Wydatki</span>
         </Link>
         <Link href="/expenses/new"
-          className="mb-6 flex h-10 items-center justify-center gap-2 rounded-xl bg-accent text-sm font-medium text-accent-fg transition hover:opacity-90">
+          className="mb-6 flex h-11 items-center justify-center gap-2 rounded-2xl bg-accent text-sm font-medium text-accent-fg shadow-float transition hover:opacity-90 active:scale-[0.98]">
           <NavIcon name="plus" className="size-4" /> Dodaj wydatek
         </Link>
         <nav className="flex flex-1 flex-col gap-1">
           {items.map((item) => (
             <Link key={item.href} href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
+                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition active:scale-[0.98]",
                 isActive(pathname, item.href) ? "bg-accent-soft font-medium text-accent" : "text-fg-muted hover:bg-surface-muted hover:text-fg",
               )}>
               <NavIcon name={item.icon} />
@@ -87,13 +90,12 @@ export function Navigation({ user, isAdmin, people }: { user: Person; isAdmin: b
             </Link>
           ))}
         </nav>
-        {people.some((p) => isAvatarId(p.avatar)) && (
+        {cats.length > 0 && (
           // The two of you at the foot of the menu - a shortcut to the shared view
-          <Link href="/together" className="group mb-3 flex items-end justify-center gap-1 rounded-2xl px-2 pt-2 transition hover:bg-surface-muted" title="Razem">
-            {people.filter((p) => isAvatarId(p.avatar)).map((p, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={p.id} src={AVATARS[p.avatar as AvatarId].full} alt={p.name}
-                className={cn("drop-shadow-md transition group-hover:-translate-y-0.5", i === 0 ? "h-24" : "h-20")} />
+          <Link href="/together" className="group mb-3 flex items-end justify-center gap-0 rounded-2xl px-2 pt-2 transition hover:bg-surface-muted" title="Razem">
+            {cats.map((p, i) => (
+              <Animal key={p.id} species={p.species} pose="stand"
+                className={cn("transition duration-300 group-hover:-translate-y-1", i === 0 ? "h-24 w-16" : "-ml-1 h-20 w-12")} />
             ))}
           </Link>
         )}
@@ -110,35 +112,45 @@ export function Navigation({ user, isAdmin, people }: { user: Person; isAdmin: b
         </div>
       </aside>
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-canvas/85 px-4 py-2.5 backdrop-blur lg:hidden">
-        <Link href="/" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.svg" alt="" className="size-7" />
-          <span className="font-semibold tracking-tight">ExpenseTracker</span>
-        </Link>
-        <Link href="/together" className="flex -space-x-2" aria-label="Razem">
-          {people.map((p) => <Avatar key={p.id} user={p} size={32} ring />)}
-        </Link>
+      <header className="sticky top-0 z-30 border-b border-line/70 bg-canvas/75 backdrop-blur-xl lg:hidden">
+        <Lights />
+        <div className="flex items-center justify-between px-4 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2">
+          <Link href="/" className="flex items-center gap-2 active:scale-95">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.svg" alt="" className="size-7" />
+            <span className="font-display text-xl font-semibold tracking-tight">Wydatki</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/expenses/new" aria-label="Dodaj wydatek"
+              className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-fg shadow-float transition active:scale-90">
+              <NavIcon name="plus" className="size-5" />
+            </Link>
+            <Link href="/together" className="flex -space-x-2 transition active:scale-95" aria-label="Razem">
+              {people.map((p) => <Avatar key={p.id} user={p} size={34} ring />)}
+            </Link>
+          </div>
+        </div>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      {/* A floating bar: thumbs reach it, content scrolls behind its glass */}
+      <nav className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 grid grid-cols-5 items-center rounded-[1.75rem] border border-line/80 bg-surface/80 px-1.5 py-1.5 shadow-float backdrop-blur-xl lg:hidden">
         {MOBILE.map((item) => {
           const active = isActive(pathname, item.href) || (item.href === "/settings" && ["/reports", "/products", "/categories", "/recurring", "/admin"].some((p) => pathname.startsWith(p)));
           if (item.href === "/scan") {
             return (
-              <Link key={item.href} href={item.href} className="flex flex-col items-center justify-center py-1.5" aria-label={item.label}>
-                <span className="-mt-6 flex size-14 items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-lg shadow-accent/30">
-                  <NavIcon name="scan" className="size-6" />
+              <Link key={item.href} href={item.href} className="group flex justify-center" aria-label="Skanuj paragon">
+                <span className="-mt-7 flex size-[3.75rem] animate-pulse-ring items-center justify-center rounded-full bg-accent text-accent-fg shadow-float ring-4 ring-canvas transition group-active:scale-90">
+                  <NavIcon name="scan" className="size-7" />
                 </span>
-                <span className="mt-0.5 text-[11px] text-fg-muted">{item.label}</span>
               </Link>
             );
           }
           return (
-            <Link key={item.href} href={item.href}
-              className={cn("flex flex-col items-center gap-0.5 py-2 text-[11px]", active ? "text-accent" : "text-fg-muted")}>
-              <NavIcon name={item.icon} />
-              {item.label}
+            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
+              className={cn("relative flex flex-col items-center gap-0.5 rounded-[1.25rem] py-1.5 text-[10.5px] font-medium transition active:scale-90", active ? "text-accent" : "text-fg-muted")}>
+              {active && <span aria-hidden className="absolute inset-0 animate-pop rounded-[1.25rem] bg-accent-soft/70" />}
+              <NavIcon name={item.icon} className={cn("relative size-[1.4rem] transition", active && "-translate-y-px scale-110")} />
+              <span className="relative">{item.label}</span>
             </Link>
           );
         })}

@@ -64,7 +64,10 @@ describe("household", () => {
     expect(feed[0]).toMatchObject({ amountPln: 10000, paidBy: { id: "m" } });
     expect(feed[0].users.map((u) => u.id)).toEqual(["m", "a"]);
     expect(feed).toHaveLength(4);
-    expect(settlement(withShared, "2026-11")).toEqual({ debts: [{ from: "a", to: "m", amount: 5000 }], sharedTotal: 10000, count: 1 });
+    const debtor = [{ user: withShared[1].user, expenses: withShared[1].expenses.filter((e) => e.shared) }];
+    const result = settlement(debtor, withShared.map((m) => m.user));
+    expect(result.debts).toEqual([{ from: "a", to: "m", amount: 5000 }]);
+    expect(result.lines).toMatchObject([{ id: "s1", merchant: "Kaufland", amountPln: 5000 }]);
   });
 
   it("writes plain-language insights", () => {

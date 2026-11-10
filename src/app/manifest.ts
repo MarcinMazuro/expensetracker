@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 /** Installable on a phone home screen; opens straight into the app. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ExpenseTracker",
+    name: "Wydatki",
     short_name: "Wydatki",
     description: "Wydatki, budżety i paragony czytane przez AI",
     start_url: "/",

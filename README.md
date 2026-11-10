@@ -15,10 +15,16 @@ GitHub Actions + Cloud Build (Workload Identity Federation, no keys).
   share, a "race" of running totals through the month, who spends what per
   category, a 6-month stacked trend, a merged feed and plain-language
   insights. Each person has a colour and an avatar used consistently.
-- **Shared expenses** - tick "shared" and the cost is split equally: each
-  account gets its own half (the odd grosz goes to the payer), editing or
-  deleting from either account updates both, and the shared view shows who
-  owes whom.
+- **Shared expenses** - tick "shared" and choose who paid and how it is
+  divided: equally, by percentages, or line by line (a line can be shared or
+  belong to one person). Each account gets its own part (the odd grosz goes
+  to the payer), editing or deleting from either account updates both, and
+  the shared view keeps a running "to pay back" list until someone marks an
+  expense as paid back.
+- **Hidden expenses and hidden lines** - a surprise gift stays invisible to
+  the other person (lists, totals, charts, CSV, direct links) until revealed
+  by a click or at a set time. A hidden line of a shared receipt is taken off
+  every amount the other person sees.
 - **Lines and quantities for any expense** - typed by hand as well as read
   from receipts; product and group come from the product memory or Gemini.
 - **Receipt scanning** - photo is scaled down in the browser, stored in a
@@ -47,7 +53,8 @@ GitHub Actions + Cloud Build (Workload Identity Federation, no keys).
   biggest expenses; CSV export (Polish Excel friendly, formula-injection safe).
 - Search across merchants, notes, tags and receipt lines; filters; tags.
 - Installable on a phone (web app manifest with a "scan receipt" shortcut),
-  light and dark theme.
+  light and dark theme plus two playful ones (hearts, Christmas with snow and
+  Santa hats). Animations respect `prefers-reduced-motion`.
 - **Sign in with Google** (OpenID Connect, authorization code + PKCE, nonce,
   ID token signature verified against Google's keys). Only e-mails on the
   allowlist in Terraform can sign in; the account is created on the first

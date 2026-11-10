@@ -9,9 +9,13 @@ import { writeExpense } from "@/lib/expense-writer";
 import { knownProducts } from "@/lib/expenses";
 import { isCurrency } from "@/lib/money";
 import { isRateLimited } from "@/lib/protection";
+import { flash } from "@/lib/flash";
 import { requireUser } from "@/lib/session";
+import { parseSplit } from "@/lib/sharing";
+import { activeUsers } from "@/lib/users";
 import { ownsReceipt, saveReceipt } from "@/lib/storage";
 import { optionalText, parseTags } from "@/lib/validation";
+import { parseHidden } from "@/lib/visibility";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
@@ -63,14 +67,19 @@ export interface ReceiptSubmission {
   date: string;
   currency: string;
   total: number;
-  items: { name: string; amount: number; categoryId: string; product?: string; quantity?: number; unit?: string; group?: string }[];
+  items: { name: string; amount: number; categoryId: string; product?: string; quantity?: number; unit?: string; group?: string; assign?: string; hidden?: boolean }[];
   mode: "split" | "single";
   /** Category of the whole receipt in "single" mode. */
   categoryId: string;
   note: string;
   tags: string;
-  /** Split equally with the other person - each account gets half. */
+  /** Divide with the other person: lines by their own assignment, the rest by the percentages. */
   shared?: boolean;
+  paidBy?: string;
+  /** JSON of percentages per user id, as in the expense form. */
+  weights?: string;
+  /** Hide from the other person, in the same shape as the expense form. */
+  hiddenSettings?: { hidden?: string; hiddenMode?: string; hiddenUntil?: string };
 }
 
 /** Saves the reviewed receipt: one expense, or one per category. */
@@ -88,13 +97,30 @@ export async function saveReceiptExpenses(input: ReceiptSubmission): Promise<{ e
     .slice(0, 200)
     .map((i) => {
       const name = optionalText(i.name, 120);
-      return { name, amount: Math.round(Number(i.amount)), categoryId: String(i.categoryId), ...normalizeProductFields(i as Record<string, unknown>, name) };
+      return {
+        name,
+        amount: Math.round(Number(i.amount)),
+        categoryId: String(i.categoryId),
+        ...normalizeProductFields(i as Record<string, unknown>, name),
+        ...(typeof i.assign === "string" && i.assign.length <= 64 && { assign: i.assign }),
+        ...(i.hidden === true && { hidden: true }),
+      };
     })
     .filter((i) => i.name && Number.isFinite(i.amount));
   if (items.some((i) => !categoryIds.has(i.categoryId))) return { error: "Każda pozycja musi mieć kategorię." };
 
   const base = { currency: input.currency, date: input.date, merchant, note: optionalText(input.note, 1000), tags: parseTags(input.tags) };
-  const options = { source: "receipt" as const, receiptPath: input.receiptPath, shared: input.shared === true };
+  const hidden = parseHidden(input.hiddenSettings ?? {}, items.some((i) => i.hidden));
+  if (!hidden.ok) return { error: hidden.error };
+  if (hidden.value?.whole && input.shared) return { error: "Wspólne zakupy nie mogą być ukryte w całości - ukryj pojedyncze pozycje." };
+  const people = (await activeUsers()).map((p) => p.id);
+  const options = {
+    source: "receipt" as const,
+    receiptPath: input.receiptPath,
+    shared: input.shared === true,
+    split: input.shared ? parseSplit(input, people, user.id) : undefined,
+    hidden: hidden.value,
+  };
 
   try {
     if (input.mode === "split" && items.length > 0) {
@@ -110,6 +136,7 @@ export async function saveReceiptExpenses(input: ReceiptSubmission): Promise<{ e
     return { error: "Nie udało się zapisać. Spróbuj ponownie." };
   }
 
+  await flash("Zapisano paragon");
   revalidatePath("/", "layout");
   return { month: input.date.slice(0, 7) };
 }

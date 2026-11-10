@@ -5,7 +5,7 @@ import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Card, CardTitle, EmptyState, buttonClass, inputClass } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { currentMonth, isIsoMonth, monthRange, monthsBack } from "@/lib/dates";
-import { listExpenses } from "@/lib/expenses";
+import { listVisibleExpenses } from "@/lib/expenses";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity, isProductGroup, PRODUCT_GROUPS, type Unit } from "@/lib/product-groups";
 import { aggregateGroups, aggregateProducts, productLines, type Quantities } from "@/lib/products";
@@ -33,7 +33,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
   const q = str(params.q).slice(0, 60);
 
   const from = year ? monthRange(monthsBack(month, 12)[0]).from : monthRange(month).from;
-  const expenses = await listExpenses(owner.id, from, monthRange(month).to);
+  const expenses = await listVisibleExpenses(user.id, owner.id, from, monthRange(month).to);
   const lines = productLines(expenses);
   const groups = aggregateGroups(lines);
   const products = aggregateProducts(lines.filter((l) => (!group || l.group === group) && (!q || matchesQuery(l.product, q))));

@@ -1,6 +1,6 @@
 # Stan projektu
 
-Ostatnia aktualizacja: 2026-11-02.
+Ostatnia aktualizacja: 2026-11-10.
 
 ## Zrobione
 - Projekt GCP `expensetracker-mm`, billing, stan Terraform, cała
@@ -20,6 +20,15 @@ Ostatnia aktualizacja: 2026-11-02.
 - 2026-11-05 (lokalnie): wydatki wspólne po równo + rozliczenie, pozycje
   przy ręcznych wydatkach, edycja z pozycjami, kategoria Sport, lew i puma
   w środku aplikacji, pełny dostęp do wydatków drugiej osoby.
+
+- 2026-11-07 (lokalnie, niewdrożone): nazwa „Wydatki”, ukryte wydatki z
+  odkrywaniem, motywy (jasny, ciemny, serduszka), puma lekko w lewo.
+
+- 2026-11-10: nowa oprawa (animacje, pozy lwa i pumy, motyw świąteczny),
+  ukrywanie pojedynczych pozycji, podział inny niż 50/50 i per pozycja,
+  „Oddane” z listą długów za cały czas. 132 testy + e2e (prywatność ukrytych
+  pozycji, podział 70/30, „Oddane”). Dane produkcyjne zmigrowane: stare
+  wspólne dostały `shared.home` i `unsettled` u dłużnika.
 
 ## Czeka
 1. Pierwsze logowanie Marcina i Agnieszki przez Google (konta powstaną same).

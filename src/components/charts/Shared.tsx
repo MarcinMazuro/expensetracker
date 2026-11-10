@@ -12,7 +12,7 @@ export function ShareBar({ people }: { people: { user: User; total: number; shar
   const sum = people.reduce((s, p) => s + p.total, 0);
   return (
     <div>
-      <div className="flex h-3 overflow-hidden rounded-full bg-surface-muted" role="img"
+      <div className="grow-x flex h-3.5 overflow-hidden rounded-full bg-surface-muted" role="img"
         aria-label={people.map((p) => `${p.user.name} ${Math.round(p.share * 100)}%`).join(", ")}>
         {sum > 0 && people.map((p) => (
           <div key={p.user.id} className="h-full transition-[width] first:rounded-l-full last:rounded-r-full"
@@ -62,9 +62,9 @@ export function RaceChart({ series, days, height = 220 }: { series: { user: User
         const last = s.points.length - 1;
         return (
           <g key={s.user.id}>
-            <path d={area} fill={`url(#fill-${s.user.id})`} />
-            <path d={line} fill="none" stroke={s.user.color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-            <circle cx={x(last)} cy={y(s.points[last])} r={4.5} fill={s.user.color} className="stroke-surface" strokeWidth={2} />
+            <path d={area} fill={`url(#fill-${s.user.id})`} className="fade-late" />
+            <path d={line} pathLength={1} className="draw" fill="none" stroke={s.user.color} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
+            <circle cx={x(last)} cy={y(s.points[last])} r={5} fill={s.user.color} className="fade-late stroke-surface" strokeWidth={2.5} />
             <title>{`${s.user.name}: ${formatMoney(s.points[last])} do dnia ${last + 1}`}</title>
           </g>
         );
@@ -92,7 +92,7 @@ export function PairedBars({ rows, users }: {
               const value = row.amounts[u.id] ?? 0;
               return (
                 <span key={u.id} className="flex items-center gap-2" title={`${u.name}: ${formatMoney(value)}`}>
-                  <span className="h-2.5 rounded-full transition-[width]" style={{ width: `max(${(value / max) * 100}%, ${value ? "4px" : "0px"})`, background: u.color }} />
+                  <span className="grow-x h-3 rounded-full" style={{ width: `max(${(value / max) * 100}%, ${value ? "4px" : "0px"})`, background: u.color }} />
                   <span className="shrink-0 text-xs text-fg-muted tabular">{value ? formatMoney(value) : "-"}</span>
                 </span>
               );
@@ -120,7 +120,7 @@ export function StackedMonths({ months, users, active, height = 180 }: {
             <span className={`mb-1 text-center text-[10px] tabular ${m.month === active ? "font-medium text-fg" : "text-fg-muted"}`}>
               {m.total ? formatMoneyShort(m.total).replace(/\s?zł/, "") : ""}
             </span>
-            <div className={`flex flex-col-reverse overflow-hidden rounded-lg ${m.month === active ? "" : "opacity-60"}`} style={{ height: `${(m.total / max) * 85}%` }}>
+            <div className={`grow-y flex flex-col-reverse overflow-hidden rounded-xl ${m.month === active ? "" : "opacity-60"}`} style={{ height: `${(m.total / max) * 85}%`, ["--i" as string]: months.indexOf(m) * 4 }}>
               {users.map((u) => (
                 <div key={u.id} style={{ height: m.total ? `${((m.amounts[u.id] ?? 0) / m.total) * 100}%` : 0, background: u.color }} />
               ))}

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
-import { formatDayShort } from "@/lib/dates";
+import { formatDateTimeShort, formatDayShort } from "@/lib/dates";
 import { BASE_CURRENCY, formatMoney } from "@/lib/money";
 import type { Category, Expense, User } from "@/lib/types";
+import { hiddenLines, isHiddenNow } from "@/lib/visibility";
 
 const SOURCE_ICON = { manual: null, receipt: "🧾", recurring: "🔁" } as const;
 
@@ -18,6 +19,9 @@ export function ExpenseRow({ expense, category, showDate = false, people = [], o
   ownerId?: string;
 }) {
   const sharers = expense.shared ? people.filter((p) => expense.shared!.participants.includes(p.id)) : [];
+  const wholeHidden = isHiddenNow(expense);
+  // Only the owner's own list carries hidden lines; for the other person they are already gone
+  const secretLines = wholeHidden ? 0 : hiddenLines(expense).length;
   return (
     <Link href={`/expenses/${expense.id}${ownerId ? `?u=${ownerId}` : ""}`}
       className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-surface-muted">
@@ -33,12 +37,17 @@ export function ExpenseRow({ expense, category, showDate = false, people = [], o
         )}
       </span>
       <span className="min-w-0 flex-1 pl-0.5">
-        <span className="flex items-center gap-1.5 truncate font-medium">
-          {expense.merchant}
-          {expense.shared && <span className="rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-medium text-accent">wspólny</span>}
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className="truncate">{expense.merchant}</span>
+          {expense.shared && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-medium text-accent">wspólny</span>}
+          {wholeHidden && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-medium text-accent">🤫 ukryty</span>}
+          {secretLines > 0 && <span className="shrink-0 rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-medium text-accent" title="Ukryte pozycje">🤫 {secretLines} poz.</span>}
+          {expense.unsettled && <span className="shrink-0 rounded-full bg-warning-soft px-1.5 py-px text-[10px] font-medium text-warning">do oddania</span>}
+          {expense.shared?.settled && <span className="shrink-0 rounded-full bg-surface-muted px-1.5 py-px text-[10px] font-medium text-fg-muted">oddane</span>}
           {SOURCE_ICON[expense.source] && <span className="text-xs" title={expense.source === "receipt" ? "Z paragonu" : "Cykliczny"}>{SOURCE_ICON[expense.source]}</span>}
         </span>
         <span className="block truncate text-xs text-fg-muted">
+          {(wholeHidden || secretLines > 0) && expense.hiddenUntil && `odkryje się ${formatDateTimeShort(expense.hiddenUntil)} · `}
           {category.name}
           {showDate && ` · ${formatDayShort(expense.date)}`}
           {expense.items?.length ? ` · ${expense.items.length} poz.` : ""}

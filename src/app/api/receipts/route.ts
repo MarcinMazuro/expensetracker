@@ -1,3 +1,4 @@
+import { receiptVisibleTo } from "@/lib/expenses";
 import { currentUser } from "@/lib/session";
 import { activeUsers } from "@/lib/users";
 import { ownsReceipt, readReceiptFile } from "@/lib/storage";
@@ -10,9 +11,10 @@ export async function GET(request: Request) {
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const path = new URL(request.url).searchParams.get("path") ?? "";
-  // Everyone in the household sees everyone's receipts - the owner's id is in the path
-  const people = await activeUsers();
-  if (!people.some((p) => ownsReceipt(p.id, path))) return new Response("Not found", { status: 404 });
+  // Everyone in the household sees everyone's receipts, except those of hidden
+  // expenses. The owner's id is in the path
+  const owner = (await activeUsers()).find((p) => ownsReceipt(p.id, path));
+  if (!owner || !(await receiptVisibleTo(user.id, owner.id, path))) return new Response("Not found", { status: 404 });
 
   const file = await readReceiptFile(path);
   if (!file) return new Response("Not found", { status: 404 });

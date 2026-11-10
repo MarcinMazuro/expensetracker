@@ -2,48 +2,123 @@
 
 /*
   Colour roles as variables - light by default, dark when the system asks
-  for it. Components only use the semantic names below (bg-surface,
-  text-fg-muted...), never raw colours.
+  for it, unless a theme was picked in Settings (data-theme). Components only
+  use the semantic names below (bg-surface, text-fg-muted...), never raw
+  colours. --c-glow-* tint the soft light behind the page, --c-shadow the
+  shadows under cards.
 */
 @layer base {
   html {
-    --c-canvas: #f6f5f1;
+    --c-canvas: #f3f6f2;
     --c-surface: #ffffff;
-    --c-surface-muted: #efede7;
-    --c-line: #e3e0d8;
-    --c-fg: #1c1b18;
-    --c-fg-muted: #6f6b62;
+    --c-surface-muted: #e8eee7;
+    --c-line: #d9e2d8;
+    --c-fg: #14211b;
+    --c-fg-muted: #5d6e64;
     --c-accent: #0f766e;
-    --c-accent-soft: #ccebe7;
+    --c-accent-soft: #cdeae5;
     --c-accent-fg: #ffffff;
     --c-warning: #b45309;
     --c-warning-soft: #fdecc8;
     --c-danger: #b91c1c;
     --c-danger-soft: #fde2e1;
+    --c-glow-1: #99e2d6;
+    --c-glow-2: #fcd9a8;
+    --c-shadow: 160 30% 20%;
     color-scheme: light;
   }
 
   @media (prefers-color-scheme: dark) {
-    html {
-      --c-canvas: #0e0f0f;
-      --c-surface: #171918;
-      --c-surface-muted: #202322;
-      --c-line: #2a2e2c;
-      --c-fg: #ecebe6;
-      --c-fg-muted: #9a978f;
-      --c-accent: #2dd4bf;
-      --c-accent-soft: #123a36;
-      --c-accent-fg: #04201d;
-      --c-warning: #fbbf24;
-      --c-warning-soft: #3a2c0b;
-      --c-danger: #f87171;
-      --c-danger-soft: #3b1414;
-      color-scheme: dark;
+    html:not([data-theme]) {
+    --c-canvas: #0b100f;
+    --c-surface: #131a18;
+    --c-surface-muted: #1b2422;
+    --c-line: #26322f;
+    --c-fg: #e9efe9;
+    --c-fg-muted: #94a59c;
+    --c-accent: #2dd4bf;
+    --c-accent-soft: #123a36;
+    --c-accent-fg: #04201d;
+    --c-warning: #fbbf24;
+    --c-warning-soft: #3a2c0b;
+    --c-danger: #f87171;
+    --c-danger-soft: #3b1414;
+    --c-glow-1: #0f766e;
+    --c-glow-2: #7c2d12;
+    --c-shadow: 0 0% 0%;
+    color-scheme: dark;
     }
+  }
+
+  html[data-theme="dark"] {
+    --c-canvas: #0b100f;
+    --c-surface: #131a18;
+    --c-surface-muted: #1b2422;
+    --c-line: #26322f;
+    --c-fg: #e9efe9;
+    --c-fg-muted: #94a59c;
+    --c-accent: #2dd4bf;
+    --c-accent-soft: #123a36;
+    --c-accent-fg: #04201d;
+    --c-warning: #fbbf24;
+    --c-warning-soft: #3a2c0b;
+    --c-danger: #f87171;
+    --c-danger-soft: #3b1414;
+    --c-glow-1: #0f766e;
+    --c-glow-2: #7c2d12;
+    --c-shadow: 0 0% 0%;
+    color-scheme: dark;
+  }
+
+  html[data-theme="hearts"] {
+    --c-canvas: #ffe9f0;
+    --c-surface: #fffafc;
+    --c-surface-muted: #ffe0ea;
+    --c-line: #fbc8d9;
+    --c-fg: #4a0d22;
+    --c-fg-muted: #94476a;
+    --c-accent: #e11d48;
+    --c-accent-soft: #ffd3e0;
+    --c-accent-fg: #ffffff;
+    --c-warning: #b4530b;
+    --c-warning-soft: #ffe7c7;
+    --c-danger: #a3123a;
+    --c-danger-soft: #ffc9d6;
+    --c-glow-1: #ff9db8;
+    --c-glow-2: #ffc2a8;
+    --c-shadow: 340 60% 40%;
+    color-scheme: light;
+  }
+
+  /* Christmas Eve: pine green night, berry red, candle gold */
+  html[data-theme="christmas"] {
+    --c-canvas: #0a1d15;
+    --c-surface: #10291d;
+    --c-surface-muted: #183728;
+    --c-line: #25503a;
+    --c-fg: #f8f2e4;
+    --c-fg-muted: #a8c0ae;
+    --c-accent: #f0484e;
+    --c-accent-soft: #4b1b1f;
+    --c-accent-fg: #ffffff;
+    --c-warning: #f6c655;
+    --c-warning-soft: #3f3413;
+    --c-danger: #ff9a8f;
+    --c-danger-soft: #4b1f1c;
+    --c-glow-1: #1f6b45;
+    --c-glow-2: #7a1c22;
+    --c-shadow: 150 60% 3%;
+    color-scheme: dark;
   }
 
   body {
     background-color: var(--c-canvas);
+    /* Two soft lights behind everything, so the page is not a flat sheet */
+    background-image:
+      radial-gradient(60rem 28rem at 110% -8%, color-mix(in oklab, var(--c-glow-1) 22%, transparent), transparent 70%),
+      radial-gradient(48rem 26rem at -20% 4%, color-mix(in oklab, var(--c-glow-2) 16%, transparent), transparent 70%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: var(--c-fg);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -57,6 +132,11 @@
   /* Amounts line up in columns */
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Taps feel physical on a phone */
+  a, button, label {
+    touch-action: manipulation;
   }
 }
 
@@ -77,4 +157,175 @@
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Headings and big amounts */
+  --font-display: var(--font-bricolage), var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: 0 1px 0 0 hsl(var(--c-shadow) / 0.04), 0 10px 30px -18px hsl(var(--c-shadow) / 0.35);
+  --shadow-float: 0 18px 40px -16px hsl(var(--c-shadow) / 0.55);
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  --animate-walk-in: walk-in 0.9s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+  --animate-breathe: breathe 5s ease-in-out infinite;
+  --animate-grow-x: grow-x 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-toast: toast 3.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pulse-ring: pulse-ring 2.6s ease-out infinite;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.86); }
+}
+@keyframes walk-in {
+  0% { opacity: 0; transform: translateX(34%); }
+  70% { opacity: 1; transform: translateX(-2%); }
+  100% { transform: translateX(0); }
+}
+@keyframes walk-in-left {
+  0% { opacity: 0; transform: translateX(-34%); }
+  70% { opacity: 1; transform: translateX(2%); }
+  100% { transform: translateX(0); }
+}
+@keyframes breathe {
+  50% { transform: scale(1.018); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+}
+@keyframes grow-y {
+  from { transform: scaleY(0); }
+}
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+}
+@keyframes spin-in {
+  from { opacity: 0; transform: rotate(-70deg) scale(0.9); }
+}
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+@keyframes toast {
+  0% { opacity: 0; transform: translateY(24px) scale(0.94); }
+  9%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--c-accent) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 14px transparent; }
+}
+@keyframes paw {
+  0%, 100% { opacity: 0.12; transform: scale(0.85); }
+  30%, 55% { opacity: 1; transform: scale(1); }
+}
+@keyframes snow {
+  from { transform: translate3d(0, -12vh, 0); }
+  to { transform: translate3d(var(--drift, 4vw), 112vh, 0); }
+}
+@keyframes float-up {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.6) rotate(-8deg); }
+  12% { opacity: var(--peak, 0.5); }
+  100% { opacity: 0; transform: translate3d(var(--drift, 3vw), -70vh, 0) scale(1.15) rotate(10deg); }
+}
+@keyframes twinkle {
+  50% { opacity: 0.35; filter: brightness(0.7); }
+}
+@keyframes confetti {
+  to { opacity: 0; transform: translate3d(var(--x), var(--y), 0) rotate(var(--r)); }
+}
+
+@layer components {
+  /* One entrance per screen: direct children arrive one after another */
+  .stagger > * {
+    animation: var(--animate-rise);
+  }
+  .stagger > :nth-child(2) { animation-delay: 60ms; }
+  .stagger > :nth-child(3) { animation-delay: 120ms; }
+  .stagger > :nth-child(4) { animation-delay: 180ms; }
+  .stagger > :nth-child(5) { animation-delay: 240ms; }
+  .stagger > :nth-child(n + 6) { animation-delay: 300ms; }
+
+  /* Chart marks grow into place. SVG needs fill-box to scale from its own edge */
+  .grow-y {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: grow-y 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 18ms + 150ms);
+  }
+  .grow-x {
+    transform-origin: left;
+    animation: var(--animate-grow-x);
+    animation-delay: calc(var(--i, 0) * 60ms + 150ms);
+  }
+  .draw {
+    stroke-dasharray: 1;
+    animation: draw 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+    animation-delay: 200ms;
+  }
+  .fade-late {
+    animation: fade 0.6s ease both;
+    animation-delay: 1.1s;
+  }
+  .spin-in {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: spin-in 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .skeleton {
+    border-radius: 1rem;
+    background: linear-gradient(100deg, var(--c-surface-muted) 40%, color-mix(in oklab, var(--c-surface-muted) 55%, var(--c-surface)) 50%, var(--c-surface-muted) 60%);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  /* Santa hats appear on everyone in the Christmas theme */
+  .santa-hat {
+    display: none;
+  }
+  html[data-theme="christmas"] .santa-hat {
+    display: block;
+  }
+
+  /* Budget bars turn into candy canes at Christmas */
+  html[data-theme="christmas"] .candy {
+    background-image: repeating-linear-gradient(-45deg, transparent 0 6px, rgb(255 255 255 / 0.55) 6px 12px);
+  }
+}
+
+/* The hat only fits the standing cut-out, so Christmas swaps the pose.
+   Outside any layer on purpose: these must win over display utilities. */
+.only-christmas {
+  display: none;
+}
+html[data-theme="christmas"] .only-christmas {
+  display: inline-block;
+}
+html[data-theme="christmas"] .not-christmas {
+  display: none;
+}
+
+/* Screens cross-fade and settle a little when you move between them */
+::view-transition-old(root) {
+  animation: 140ms ease-out both fade reverse;
+}
+::view-transition-new(root) {
+  animation: 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both rise;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .ambient {
+    display: none;
+  }
 }

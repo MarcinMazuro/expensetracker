@@ -6,7 +6,7 @@ import { MonthSwitcher } from "@/components/MonthSwitcher";
 import { Card, EmptyState, inputClass, LinkButton, buttonClass } from "@/components/ui";
 import { categoryMap, listCategories, UNKNOWN_CATEGORY } from "@/lib/categories";
 import { currentMonth, formatDay, isIsoMonth, monthRange } from "@/lib/dates";
-import { listExpenses } from "@/lib/expenses";
+import { listVisibleExpenses } from "@/lib/expenses";
 import { filterExpenses, groupByDay } from "@/lib/filters";
 import { formatMoney } from "@/lib/money";
 import { bookDueRecurring } from "@/lib/recurring";
@@ -30,7 +30,7 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/expense
 
   await bookDueRecurring(owner.id);
   const { from, to } = monthRange(month);
-  const [categories, all] = await Promise.all([listCategories(owner.id), listExpenses(owner.id, from, to)]);
+  const [categories, all] = await Promise.all([listCategories(owner.id), listVisibleExpenses(user.id, owner.id, from, to)]);
   const categoriesById = categoryMap(categories);
   const expenses = filterExpenses(all, filters);
   const days = groupByDay(expenses);

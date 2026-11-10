@@ -122,6 +122,9 @@ export function parseItemsJson(value: unknown, categoryIds?: Set<string>): Parse
       ...(typeof r.product === "string" && r.product.trim() && { product: r.product.trim().toLowerCase().slice(0, 60) }),
       ...(isProductGroup(r.group) && { group: r.group }),
       ...(typeof r.categoryId === "string" && (!categoryIds || categoryIds.has(r.categoryId)) && { categoryId: r.categoryId }),
+      // Checked against the real participants when the expense is divided
+      ...(typeof r.assign === "string" && r.assign && r.assign.length <= 64 && { assign: r.assign }),
+      ...(r.hidden === true && { hidden: true }),
     });
   }
   return { ok: true, value: items };
