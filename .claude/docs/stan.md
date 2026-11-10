@@ -24,7 +24,7 @@ Ostatnia aktualizacja: 2026-11-10.
 - 2026-11-07 (lokalnie, niewdrożone): nazwa „Wydatki”, ukryte wydatki z
   odkrywaniem, motywy (jasny, ciemny, serduszka), puma lekko w lewo.
 
-- 2026-11-10: nowa oprawa (animacje, pozy lwa i pumy, motyw świąteczny),
+- 2026-11-10 na produkcji (`6f55762`, ręcznie przez Cloud Build): nowa oprawa (animacje, pozy lwa i pumy, motyw świąteczny),
   ukrywanie pojedynczych pozycji, podział inny niż 50/50 i per pozycja,
   „Oddane” z listą długów za cały czas. 132 testy + e2e (prywatność ukrytych
   pozycji, podział 70/30, „Oddane”). Dane produkcyjne zmigrowane: stare
